@@ -2,7 +2,7 @@ import { lookup } from "node:dns";
 import { isIP, type LookupFunction } from "node:net";
 import ipaddr from "ipaddr.js";
 import { Agent, fetch as undiciFetch } from "undici";
-import { normalizeUrl } from "./audit.ts";
+import { normalizeUrl } from "./audit.js";
 
 export function isPublicAddress(address: string) {
   try {

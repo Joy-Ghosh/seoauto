@@ -2,10 +2,10 @@ import type http from "node:http";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { NvidiaClient, buildContext, validateInput } from "./ai.ts";
-import { crawl } from "./crawler.ts";
-import type { Scan } from "../src/types.ts";
-import type { AiResult } from "../src/ai-types.ts";
+import { NvidiaClient, buildContext, validateInput } from "./ai.js";
+import { crawl } from "./crawler.js";
+import type { Scan } from "../src/types.js";
+import type { AiResult } from "../src/ai-types.js";
 
 export function createAiApi(
   dataDir: string,

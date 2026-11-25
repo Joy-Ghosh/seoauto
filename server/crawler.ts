@@ -1,6 +1,6 @@
-import type { Scan, Page } from "../src/types.ts";
-import { normalizeUrl, parsePage, analyze } from "./audit.ts";
-import { boundedText } from "./public-network.ts";
+import type { Scan, Page } from "../src/types.js";
+import { normalizeUrl, parsePage, analyze } from "./audit.js";
+import { boundedText } from "./public-network.js";
 export function robotsAllows(text: string, url: string) {
   const groups: {
     agents: string[];

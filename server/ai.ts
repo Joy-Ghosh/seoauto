@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { AiInput, AiResult, AiStatus, AiTask } from "../src/ai-types.ts";
-import { AI_TOOLS, DEFAULT_MODEL } from "../src/ai-types.ts";
-import type { Scan } from "../src/types.ts";
-import { normalizeUrl } from "./audit.ts";
+import type { AiInput, AiResult, AiStatus, AiTask } from "../src/ai-types.js";
+import { AI_TOOLS, DEFAULT_MODEL } from "../src/ai-types.js";
+import type { Scan } from "../src/types.js";
+import { normalizeUrl } from "./audit.js";
 
 const ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
 const rowSchema = (fields: string[]) => ({

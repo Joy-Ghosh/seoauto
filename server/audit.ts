@@ -1,6 +1,6 @@
 import { Parser } from "htmlparser2";
 import { createHash } from "node:crypto";
-import type { Page, Issue, Suggestion } from "../src/types.ts";
+import type { Page, Issue, Suggestion } from "../src/types.js";
 export function normalizeUrl(input: string, base?: string) {
   const u = new URL(input, base);
   if (!["http:", "https:"].includes(u.protocol) || u.username || u.password)

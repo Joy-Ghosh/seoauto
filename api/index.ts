@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { NvidiaClient, validateInput, buildContext } from "../server/ai.ts";
-import { publicFetch, publicUrl } from "../server/public-network.ts";
-import { crawl } from "../server/crawler.ts";
-import { analyze, parsePage } from "../server/audit.ts";
-import { scanSchema } from "../src/scan-schema.ts";
-import { DEFAULT_MODEL } from "../src/ai-types.ts";
-import type { Scan } from "../src/types.ts";
+import { NvidiaClient, validateInput, buildContext } from "../server/ai.js";
+import { publicFetch, publicUrl } from "../server/public-network.js";
+import { crawl } from "../server/crawler.js";
+import { analyze, parsePage } from "../server/audit.js";
+import { scanSchema } from "../src/scan-schema.js";
+import { DEFAULT_MODEL } from "../src/ai-types.js";
+import type { Scan } from "../src/types.js";
 import {
   authReady,
   cookie,
@@ -18,7 +18,7 @@ import {
   setCookie,
   unseal,
   type AuthConfig,
-} from "../server/hosted-auth.ts";
+} from "../server/hosted-auth.js";
 
 export function configFromEnv(): AuthConfig {
   return {

@@ -12,7 +12,7 @@
     "dev:hosted": "tsx --env-file=.env.local server/hosted-dev.ts"
   },
   "engines": {
-    "node": ">=22.14.0"
+    "node": ">=22.14.0 <25"
   },
   "dependencies": {
     "htmlparser2": "^10.0.0",

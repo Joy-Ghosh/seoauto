@@ -1,7 +1,7 @@
 import http from "node:http";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
-import handler from "../api/index.ts";
+import handler from "../api/index.js";
 const port = Number(process.env.PORT) || 4318;
 const vite = await (
   await import("vite")

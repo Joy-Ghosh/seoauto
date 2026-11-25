@@ -746,6 +746,7 @@ function App() {
                           : "Scan in progress"}
                   </strong>
                   <span>{host(scan.url)}</span>
+                  {host(scan.url) === "sample.example" && <span className="ai-chip">Sample audit · demonstration</span>}
                   <time>{new Date(scan.startedAt).toLocaleString()}</time>
                 </div>
               )}
@@ -1725,3 +1726,4 @@ const mount = document.getElementById("root")! as HTMLElement & {
     <App />
   </AccessGate>,
 );
+

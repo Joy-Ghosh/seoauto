@@ -28,4 +28,3 @@ The app does not have a live search engine, keyword metrics, rank tracker or ana
 The WordPress companion remains unverified against a live WordPress runtime; its PHP syntax parser check passes.
 
 Local hardware was inspected for a model recommendation: NVIDIA GeForce RTX 3050 Laptop GPU with 4 GB VRAM and about 15 GB usable system RAM. Qwen3 4B via Ollama was recommended as a local option, but neither Ollama nor a local model was installed or integrated during this work. The app's current AI provider is NVIDIA.
-

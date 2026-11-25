@@ -68,4 +68,3 @@ The crawler reads response HTML, not target-page JavaScript. It does not fetch s
 Download the companion ZIP from Repair plan. Install it manually on a staging WordPress site first, then import and preview the exported JSON plan under Tools → SEO repair plans. Original-value and permission checks guard writes; backups support guarded restoration. Titles, descriptions and shared media alt text are supported. H1s, body content, links, archives and external images require manual editing. Live WordPress/theme/cache integration has not been validated.
 
 See [SECURITY.md](SECURITY.md) for the access and network model, and [docs/PHASES.md](docs/PHASES.md) for the deferred ChatGPT MCP work.
-

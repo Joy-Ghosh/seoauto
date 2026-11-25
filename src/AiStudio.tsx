@@ -86,6 +86,29 @@ export default function AiStudio({
   initialTask?: AiTask;
   initialPageUrl?: string;
 }) {
+  const [savedSettings] = useState(() => {
+    try {
+      const value = JSON.parse(
+        localStorage.getItem("seo:research-settings:" + scan?.id) || "{}",
+      );
+      const clean: Record<string, string> = {};
+      for (const key of [
+        "task",
+        "seeds",
+        "market",
+        "language",
+        "audience",
+        "question",
+        "pageUrl",
+        "competitors",
+      ])
+        if (typeof value[key] === "string")
+          clean[key] = value[key].slice(0, 4000);
+      return clean;
+    } catch {
+      return {} as Record<string, string>;
+    }
+  });
   const [status, setStatus] = useState<AiStatus>({
     connected: false,
     model: DEFAULT_MODEL,
@@ -93,14 +116,25 @@ export default function AiStudio({
   });
   const [key, setKey] = useState("");
   const [model, setModel] = useState(DEFAULT_MODEL);
-  const [task, setTask] = useState<AiTask>(initialTask || "keywords");
-  const [seeds, setSeeds] = useState("");
-  const [market, setMarket] = useState("");
-  const [language, setLanguage] = useState("English");
-  const [audience, setAudience] = useState("");
-  const [question, setQuestion] = useState("");
-  const [pageUrl, setPageUrl] = useState(initialPageUrl || "");
-  const [competitors, setCompetitors] = useState("");
+  const [task, setTask] = useState<AiTask>(
+    initialTask ||
+      AI_TOOLS.find((tool) => tool.id === savedSettings.task)?.id ||
+      "keywords",
+  );
+  const [seeds, setSeeds] = useState(savedSettings.seeds || "");
+  const [market, setMarket] = useState(savedSettings.market || "");
+  const [language, setLanguage] = useState(savedSettings.language || "English");
+  const [audience, setAudience] = useState(savedSettings.audience || "");
+  const [question, setQuestion] = useState(savedSettings.question || "");
+  const [pageUrl, setPageUrl] = useState(
+    initialPageUrl ||
+      (scan?.pages.some((p) => p.url === savedSettings.pageUrl)
+        ? savedSettings.pageUrl
+        : ""),
+  );
+  const [competitors, setCompetitors] = useState(
+    savedSettings.competitors || "",
+  );
   const [reports, setReports] = useState<AiResult[]>([]);
   const [report, setReport] = useState<AiResult | null>(null);
   const [busy, setBusy] = useState("");
@@ -108,6 +142,36 @@ export default function AiStudio({
   const [notice, setNotice] = useState("");
   const [consent, setConsent] = useState(false);
   const controller = useRef<AbortController | null>(null);
+  useEffect(() => {
+    if (!scan) return;
+    try {
+      localStorage.setItem(
+        "seo:research-settings:" + scan.id,
+        JSON.stringify({
+          task,
+          seeds,
+          market,
+          language,
+          audience,
+          question,
+          pageUrl,
+          competitors,
+        }),
+      );
+    } catch {
+      /* Research stays usable if browser storage is unavailable. */
+    }
+  }, [
+    scan?.id,
+    task,
+    seeds,
+    market,
+    language,
+    audience,
+    question,
+    pageUrl,
+    competitors,
+  ]);
   const pages =
     scan?.pages.filter((p) => p.status >= 200 && p.status < 300 && !p.error) ||
     [];
@@ -253,107 +317,129 @@ export default function AiStudio({
 
   return (
     <div className="ai-studio">
-      <section className="panel ai-connection" aria-labelledby="nvidia-heading">
-        <div className="section-heading">
-          <div>
-            <h2 id="nvidia-heading">
-              <KeyRound size={18} /> NVIDIA connection
-            </h2>
-            <p>
-              Use your own NVIDIA Build API key. It is never saved to
-              localStorage, scan files or exported research.
-            </p>
-          </div>
+      <details className="panel ai-connection" open={!status.connected}>
+        <summary>
+          <KeyRound size={17} />
+          <strong>AI connection</strong>
           <span className={"ai-chip " + (status.connected ? "connected" : "")}>
-            {status.connected ? "Connected" : "Not connected"}
+            {status.connected ? "Connected to NVIDIA" : "Not connected"}
           </span>
-        </div>
-        {status.connected ? (
-          <div className="ai-connected">
+        </summary>
+        <div className="connection-content">
+          <div className="section-heading">
             <div>
-              <strong>{status.model}</strong>
+              <h2 id="nvidia-heading">
+                <KeyRound size={18} /> NVIDIA connection
+              </h2>
               <p>
-                {hosted
-                  ? "Key stays in an encrypted, HttpOnly cookie tied to your sign-in. Sign out or disconnect to remove it."
-                  : "Key stays in server memory until you disconnect or restart the app."}
+                Use your own NVIDIA Build API key. It is never saved to
+                localStorage, scan files or exported research.
               </p>
             </div>
-            <button
-              className="button secondary"
-              disabled={!!busy}
-              onClick={() => void disconnect()}
+            <span
+              className={"ai-chip " + (status.connected ? "connected" : "")}
             >
-              <Unplug size={15} /> Disconnect
-            </button>
+              {status.connected ? "Connected" : "Not connected"}
+            </span>
           </div>
-        ) : (
-          <form
-            className="ai-connect-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void connect();
-            }}
-          >
-            <label>
-              NVIDIA API key
-              <input
-                name="nvidia-api-key"
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                placeholder="Paste your key here"
-                required
+          {status.connected ? (
+            <div className="ai-connected">
+              <div>
+                <strong>{status.model}</strong>
+                <p>
+                  {hosted
+                    ? "Key stays in an encrypted, HttpOnly cookie tied to your sign-in. Sign out or disconnect to remove it."
+                    : "Key stays in server memory until you disconnect or restart the app."}
+                </p>
+              </div>
+              <button
+                className="button secondary"
                 disabled={!!busy}
-                maxLength={2048}
-              />
-            </label>
-            <label>
-              Text model ID
-              <input
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                required
-                disabled={!!busy}
-                list="nvidia-models"
-                spellCheck={false}
-              />
-              <datalist id="nvidia-models">
-                <option value={DEFAULT_MODEL} />
-              </datalist>
-            </label>
-            <button className="button primary" disabled={!!busy || !key.trim()}>
-              {busy.startsWith("Connecting") ? (
-                <LoaderCircle size={16} className="spin" />
-              ) : (
-                <KeyRound size={16} />
-              )}{" "}
-              Connect & test
-            </button>
-            <p className="ai-small">
-              The connection test sends a short “OK” prompt to NVIDIA and may
-              use your API allowance.{" "}
-              <a
-                href="https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b"
-                target="_blank"
-                rel="noreferrer"
+                onClick={() => void disconnect()}
               >
-                Model & key details
-              </a>
-            </p>
-          </form>
-        )}
-      </section>
+                <Unplug size={15} /> Disconnect
+              </button>
+            </div>
+          ) : (
+            <form
+              className="ai-connect-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void connect();
+              }}
+            >
+              <label>
+                NVIDIA API key
+                <input
+                  name="nvidia-api-key"
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                  placeholder="Paste your key here"
+                  required
+                  disabled={!!busy}
+                  maxLength={2048}
+                />
+              </label>
+              <details className="model-options">
+                <summary>Model settings</summary>
+                <label>
+                  Text model ID
+                  <input
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    required
+                    disabled={!!busy}
+                    onInvalid={(event) => {
+                      const disclosure = event.currentTarget.closest("details");
+                      if (disclosure) disclosure.open = true;
+                    }}
+                    list="nvidia-models"
+                    spellCheck={false}
+                  />
+                  <datalist id="nvidia-models">
+                    <option value={DEFAULT_MODEL} />
+                  </datalist>
+                </label>
+              </details>
+              <button
+                className="button primary"
+                disabled={!!busy || !key.trim()}
+              >
+                {busy.startsWith("Connecting") ? (
+                  <LoaderCircle size={16} className="spin" />
+                ) : (
+                  <KeyRound size={16} />
+                )}{" "}
+                Connect & test
+              </button>
+              <p className="ai-small">
+                The connection test sends a short “OK” prompt to NVIDIA and may
+                use your API allowance.{" "}
+                <a
+                  href="https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Model & key details
+                </a>
+              </p>
+            </form>
+          )}
+        </div>
+      </details>
 
       <section className="panel ai-research" aria-labelledby="ai-tools-heading">
         <div className="section-heading">
           <div>
             <h2 id="ai-tools-heading">
-              <Sparkles size={18} /> What would you like to improve?
+              <Sparkles size={18} /> Shape your research
             </h2>
             <p>
-              Start from page evidence. Turn ideas into changes you can review.
+              Choose a task and focus. You’ll review the result before saving
+              any changes.
             </p>
             {scan && (
               <p className="ai-site-context">
@@ -364,20 +450,22 @@ export default function AiStudio({
             )}
           </div>
         </div>
-        <div className="ai-tools" role="group" aria-label="AI SEO tools">
-          {AI_TOOLS.map((tool) => (
-            <button
-              type="button"
-              key={tool.id}
+        <div className="research-chooser">
+          <label>
+            Research task
+            <select
+              value={task}
               disabled={!!busy}
-              aria-pressed={task === tool.id}
-              className={"ai-tool " + (task === tool.id ? "selected" : "")}
-              onClick={() => chooseTool(tool.id)}
+              onChange={(event) => chooseTool(event.target.value as AiTask)}
             >
-              <strong>{tool.name}</strong>
-              <span>{tool.description}</span>
-            </button>
-          ))}
+              {AI_TOOLS.map((tool) => (
+                <option key={tool.id} value={tool.id}>
+                  {tool.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p>{AI_TOOLS.find((tool) => tool.id === task)?.description}</p>
         </div>
         {!scan ? (
           <p className="notice">
@@ -402,36 +490,6 @@ export default function AiStudio({
                   onChange={(e) => setSeeds(e.target.value)}
                   placeholder="e.g. WordPress SEO, ecommerce product pages"
                   maxLength={1500}
-                  disabled={!!busy}
-                />
-              </label>
-              <label>
-                Target market
-                <input
-                  value={market}
-                  onChange={(e) => setMarket(e.target.value)}
-                  placeholder="e.g. India, English-speaking small businesses"
-                  maxLength={150}
-                  disabled={!!busy}
-                />
-              </label>
-              <label>
-                Language
-                <input
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  placeholder="English"
-                  maxLength={100}
-                  disabled={!!busy}
-                />
-              </label>
-              <label className="ai-wide">
-                Audience & business context
-                <input
-                  value={audience}
-                  onChange={(e) => setAudience(e.target.value)}
-                  placeholder="Who you help, what you sell, and your main goal"
-                  maxLength={1000}
                   disabled={!!busy}
                 />
               </label>
@@ -497,6 +555,47 @@ export default function AiStudio({
                 />
               </label>
             </div>
+            <details className="research-context">
+              <summary>
+                Audience & language{" "}
+                <span>
+                  {market || "All markets"} · {language || "English"}
+                </span>
+              </summary>
+              <div className="ai-fields">
+                {" "}
+                <label>
+                  Target market
+                  <input
+                    value={market}
+                    onChange={(e) => setMarket(e.target.value)}
+                    placeholder="e.g. India, English-speaking small businesses"
+                    maxLength={150}
+                    disabled={!!busy}
+                  />
+                </label>
+                <label>
+                  Language
+                  <input
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    placeholder="English"
+                    maxLength={100}
+                    disabled={!!busy}
+                  />
+                </label>
+                <label className="ai-wide">
+                  Audience & business context
+                  <input
+                    value={audience}
+                    onChange={(e) => setAudience(e.target.value)}
+                    placeholder="Who you help, what you sell, and your main goal"
+                    maxLength={1000}
+                    disabled={!!busy}
+                  />
+                </label>
+              </div>
+            </details>
             <label className="ai-consent">
               <input
                 type="checkbox"
@@ -506,8 +605,8 @@ export default function AiStudio({
               />
               <span>
                 Send sampled titles, descriptions, page text, links and audit
-                findings to NVIDIA for this analysis. Results stay on this
-                computer. NVIDIA account limits apply.
+                findings to NVIDIA for this analysis. Results stay in this
+                browser. NVIDIA account limits apply.
               </span>
             </label>
             <div className="ai-run-row">
@@ -526,7 +625,11 @@ export default function AiStudio({
                 <ArrowRight size={16} />
               </button>
               <span className="ai-small">
-                No search-volume or live ranking feed is connected.
+                {!status.connected
+                  ? "Connect your NVIDIA key above to run this research."
+                  : !consent
+                    ? "Review and select the data-sharing checkbox to continue."
+                    : "No search-volume or live ranking feed is connected."}
               </span>
             </div>
           </form>

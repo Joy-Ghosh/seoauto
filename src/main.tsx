@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowDownToLine,
@@ -35,7 +35,7 @@ import { api, hosted } from "./client";
 import AccessGate, { useOwnerSession } from "./AccessGate";
 import { exportScan, exportCsv } from "./exports";
 import ScanBackup from "./ScanBackup";
-import "./style.css";
+import "./workspace.css";
 type View = "overview" | "issues" | "pages" | "links" | "repairs" | "ai";
 type History = {
   id: string;
@@ -49,9 +49,9 @@ const nav = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "issues", label: "Findings", icon: FileSearch },
   { id: "pages", label: "Pages", icon: Files },
-  { id: "links", label: "Internal links", icon: GitBranch },
+  { id: "links", label: "Links", icon: GitBranch },
   { id: "repairs", label: "Repair plan", icon: ListChecks },
-  { id: "ai", label: "AI Studio", icon: Sparkles },
+  { id: "ai", label: "AI Research", icon: Sparkles },
 ] as const;
 const short = (url: string) => {
   try {
@@ -89,12 +89,22 @@ function download(name: string, data: unknown) {
 }
 function App() {
   const owner = useOwnerSession();
+  const [composerOpen, setComposerOpen] = useState(false);
+  const scanInput = useRef<HTMLInputElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const [undoRepair, setUndoRepair] = useState<{
+    scanId: string;
+    repair: Repair;
+  } | null>(null);
   const [aiLaunch, setAiLaunch] = useState<{
     task: AiTask;
     pageUrl: string;
     scanId: string;
   } | null>(null);
-  const [view, setView] = useState<View>("overview"),
+  const [view, setView] = useState<View>(
+      () =>
+        nav.find((item) => "#" + item.id === location.hash)?.id || "overview",
+    ),
     [scan, setScan] = useState<Scan | null>(null),
     [history, setHistory] = useState<History[]>([]),
     [url, setUrl] = useState(""),
@@ -120,6 +130,23 @@ function App() {
         .catch(() => sessionStorage.removeItem("seo:last-scan"));
   }, []);
   useEffect(() => {
+    const restoreView = () => {
+      const next = nav.find((item) => "#" + item.id === location.hash)?.id;
+      if (next) {
+        setView(next);
+        setQuery("");
+        setSeverity("all");
+        setDetail(null);
+      } else if (!location.hash) setView("overview");
+    };
+    window.addEventListener("popstate", restoreView);
+    window.addEventListener("hashchange", restoreView);
+    return () => {
+      window.removeEventListener("popstate", restoreView);
+      window.removeEventListener("hashchange", restoreView);
+    };
+  }, []);
+  useEffect(() => {
     if (scan) sessionStorage.setItem("seo:last-scan", scan.id);
   }, [scan?.id]);
   useEffect(() => {
@@ -138,7 +165,10 @@ function App() {
   }, [repairs]);
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(""), 3500);
+    const t = setTimeout(() => {
+      setToast("");
+      setUndoRepair(null);
+    }, 6500);
     return () => clearTimeout(t);
   }, [toast]);
   useEffect(() => {
@@ -179,7 +209,10 @@ function App() {
       if (!items?.length) return;
       const first = items[0],
         last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
+      if (!dialog?.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();
       } else if (!e.shiftKey && document.activeElement === last) {
@@ -210,7 +243,8 @@ function App() {
       });
       setRepairs([]);
       setScan(await api<Scan>("/api/scans/" + data.id));
-      setView("overview");
+      choose("overview");
+      setComposerOpen(false);
       setDetail(null);
       setQuery("");
       refreshHistory();
@@ -256,9 +290,19 @@ function App() {
     [issues],
   );
   const choose = (v: View) => {
+    if (location.hash !== "#" + v) window.history.pushState(null, "", "#" + v);
     setView(v);
     setQuery("");
     setSeverity("all");
+    window.scrollTo({ top: 0, behavior: "auto" });
+    requestAnimationFrame(() =>
+      heading.current?.focus({ preventScroll: true }),
+    );
+  };
+  const newScan = () => {
+    choose("overview");
+    setComposerOpen(true);
+    requestAnimationFrame(() => scanInput.current?.focus());
   };
   const openAi = (task: AiTask, pageUrl = "") => {
     if (!scan) return;
@@ -268,6 +312,7 @@ function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   };
   const addRepair = (repair: Repair) => {
+    setUndoRepair(null);
     setRepairs((prev) => [...prev.filter((r) => r.id !== repair.id), repair]);
     setToast("Saved to your local repair plan.");
   };
@@ -284,6 +329,9 @@ function App() {
   };
   return (
     <div className="app">
+      <a className="skip-link" href="#workspace-content">
+        Skip to content
+      </a>
       <aside className="sidebar">
         <a
           className="brand"
@@ -297,8 +345,8 @@ function App() {
             <GitBranch size={22} />
           </span>
           <span>
-            SEO<span className="brand-light">workbench</span>
-            <small>YOUR LOCAL WORKSPACE</small>
+            SEO Workbench
+            <small>Website intelligence</small>
           </span>
         </a>
         <div className="workspace">
@@ -307,22 +355,37 @@ function App() {
           </span>
           <div>
             <strong>{scan ? host(scan.url) : "Your next website"}</strong>
-            <small>
-              {scan ? "Local audit workspace" : "Add a site to get started"}
-            </small>
+            <small>{scan ? "Current scan" : "Your private workspace"}</small>
           </div>
         </div>
-        <p className="nav-label">WORKSPACE</p>
-        <nav>
+        <button
+          className="button primary sidebar-new"
+          onClick={newScan}
+          disabled={running || busy}
+        >
+          <Plus size={17} /> New scan
+        </button>
+        <p className="nav-label">Workspace</p>
+        <nav aria-label="Workspace navigation">
           {nav.map((n) => (
             <button
               key={n.id}
-              className={view === n.id ? "nav-item active" : "nav-item"}
+              className={
+                (view === n.id ? "nav-item active" : "nav-item") +
+                (view === "links" && n.id === "pages" ? " mobile-parent" : "")
+              }
               onClick={() => choose(n.id)}
               aria-current={view === n.id ? "page" : undefined}
             >
               <n.icon size={18} />
-              {n.label}
+              <span className="desktop-nav-label">{n.label}</span>
+              <span className="mobile-nav-label">
+                {n.id === "repairs"
+                  ? "Plan"
+                  : n.id === "ai"
+                    ? "Research"
+                    : n.label}
+              </span>
               {n.id === "repairs" && repairs.length > 0 && (
                 <span className="nav-count">{repairs.length}</span>
               )}
@@ -332,7 +395,7 @@ function App() {
         <div className="sidebar-bottom">
           <button className="nav-item" onClick={() => setHelp(true)}>
             <CircleHelp size={18} />
-            How this works
+            Help & scan limits
           </button>
           <div className="local-note">
             <span className="status-dot" />
@@ -352,10 +415,48 @@ function App() {
       <div className="shell">
         <header className="topbar">
           <div className="breadcrumb">
-            Workspace <ChevronRight size={14} />
-            <span>{nav.find((n) => n.id === view)?.label}</span>
+            <Globe2 size={17} />
+            <label className="site-switcher">
+              <span className="sr-only">Open a saved scan</span>
+              <select
+                value={scan?.id || ""}
+                onChange={(event) => {
+                  if (!event.target.value) return;
+                  void api<Scan>("/api/scans/" + event.target.value)
+                    .then((value) => {
+                      setScan(value);
+                      choose("overview");
+                      setComposerOpen(false);
+                    })
+                    .catch((e) => setError(e.message));
+                }}
+              >
+                <option value="" disabled>
+                  Choose a website
+                </option>
+                {scan && !history.some((item) => item.id === scan.id) && (
+                  <option value={scan.id}>
+                    {host(scan.url)} ·{" "}
+                    {running ? "Scanning…" : `${pages.length} pages`}
+                  </option>
+                )}
+                {history.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {host(item.url)} · {item.pages} pages ·{" "}
+                    {new Date(item.startedAt).toLocaleDateString()}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="topbar-actions">
+            <button
+              className="button secondary compact new-scan-button"
+              onClick={newScan}
+              disabled={running || busy}
+            >
+              <Plus size={16} /> New scan
+            </button>
             <span className="local-badge">
               <ShieldCheck size={14} />{" "}
               {view === "ai"
@@ -371,26 +472,32 @@ function App() {
             )}
           </div>
         </header>
-        <main>
+        <main id="workspace-content" tabIndex={-1}>
           <div className="page-heading">
             <div>
-              <div className="eyebrow">A LITTLE CLARITY. A BETTER WEBSITE.</div>
-              <h1>
+              <div className="eyebrow">
+                {scan ? host(scan.url) : "YOUR WORKSPACE"}
+              </div>
+              <h1 ref={heading} tabIndex={-1}>
                 {view === "overview"
-                  ? "Make the next fix count."
+                  ? scan
+                    ? "Website overview"
+                    : "A better website starts here."
                   : view === "issues"
-                    ? "Know what needs attention."
+                    ? "Findings"
                     : view === "pages"
-                      ? "Every page, in context."
+                      ? "Pages"
                       : view === "links"
-                        ? "Connect the useful pages."
+                        ? "Internal links"
                         : view === "ai"
-                          ? "Give your SEO a research partner."
-                          : "Review before you change."}
+                          ? "AI Research"
+                          : "Repair plan"}
               </h1>
               <p>
                 {view === "overview"
-                  ? "Scan your website. Understand the evidence. Make a plan."
+                  ? scan
+                    ? "Your scan, the priorities, and what to do next."
+                    : "Find what needs attention. Make your next change with confidence."
                   : view === "issues"
                     ? "Clear findings with a reason and a practical next step."
                     : view === "pages"
@@ -399,7 +506,7 @@ function App() {
                         ? "Candidates from shared words in existing page content. Always review the placement."
                         : view === "ai"
                           ? "Use your NVIDIA key to turn page evidence into keyword ideas, content plans and reviewable improvements."
-                          : "Your drafts stay on this computer until you export and apply them."}
+                          : "Review your saved drafts, then export them when you’re ready."}
               </p>
             </div>
             {scan && scan.status !== "running" && (
@@ -415,17 +522,54 @@ function App() {
               </a>
             )}
           </div>
-          {(view === "overview" || (!scan && view !== "ai")) && (
+          {(view === "pages" || view === "links") && (
+            <div className="page-segments" role="group" aria-label="Page views">
+              <button
+                aria-pressed={view === "pages"}
+                onClick={() => choose("pages")}
+              >
+                Page inventory
+              </button>
+              <button
+                aria-pressed={view === "links"}
+                onClick={() => choose("links")}
+              >
+                Connections & links
+              </button>
+            </div>
+          )}
+          {error && scan && !composerOpen && (
+            <p className="error-box" role="alert">
+              {error}
+            </p>
+          )}
+          {((view === "overview" && (!scan || composerOpen)) ||
+            (!scan && view !== "ai")) && (
             <section className="scan-panel">
               <div className="scan-label">
                 <span className="scan-icon">
                   <Search size={19} />
                 </span>
                 <div>
-                  <h2>Start with a website</h2>
-                  <p>Read-only scan · one website · up to 200 pages</p>
+                  <h2>
+                    {scan
+                      ? "Start another scan"
+                      : "Which website would you like to improve?"}
+                  </h2>
+                  <p>
+                    Enter a public website. We’ll review its pages without
+                    changing anything.
+                  </p>
                 </div>
-                <span className="html-label">HTML CRAWLER</span>
+                {scan && (
+                  <button
+                    className="icon-button"
+                    aria-label="Close new scan"
+                    onClick={() => setComposerOpen(false)}
+                  >
+                    <X size={18} />
+                  </button>
+                )}
               </div>
               <form
                 onSubmit={(e) => {
@@ -437,9 +581,10 @@ function App() {
                   <Globe2 size={18} />
                   <span className="sr-only">Website URL</span>
                   <input
+                    ref={scanInput}
                     type="text"
                     inputMode="url"
-                    placeholder="yourwebsite.com"
+                    placeholder="https://yourwebsite.com"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     required
@@ -485,25 +630,10 @@ function App() {
                   disabled={busy || running}
                   onClick={() => void start(true)}
                 >
-                  {hosted ? "Load sample audit" : "Try the local sample"}{" "}
-                  <ArrowUpRight size={13} />
+                  Explore a sample <ArrowUpRight size={13} />
                 </button>
               </div>
             </section>
-          )}
-          {view === "overview" && (
-            <ScanBackup
-              scan={scan}
-              repairs={repairs}
-              imported={(value) => {
-                setScan(value);
-                setView("overview");
-                refreshHistory();
-                setToast(
-                  "Scan imported into this browser. Review draft changes before export.",
-                );
-              }}
-            />
           )}
           {running && (
             <section className="progress-panel" aria-live="polite">
@@ -551,27 +681,26 @@ function App() {
             <>
               <section className="empty-intro">
                 <div className="section-heading">
-                  <h2>A clear path from scan to action</h2>
-                  <span>THREE SIMPLE STEPS</span>
+                  <h2>From evidence to a better page.</h2>
                 </div>
                 <div className="steps">
                   {[
                     {
                       n: "01",
                       icon: FileSearch,
-                      title: "See what’s there",
+                      title: "Scan your website",
                       text: "Read the pages, metadata, headings and internal links your site serves.",
                     },
                     {
                       n: "02",
                       icon: SlidersHorizontal,
-                      title: "Understand the evidence",
+                      title: "Find your next improvement",
                       text: "Separate errors, review suggestions and intentional choices.",
                     },
                     {
                       n: "03",
                       icon: ListChecks,
-                      title: "Make a repair plan",
+                      title: "Review every change",
                       text: "Draft changes, export your plan and review it before applying.",
                     },
                   ].map((s) => (
@@ -627,6 +756,51 @@ function App() {
               )}
               {view === "overview" && (
                 <>
+                  <section
+                    className="next-step"
+                    aria-labelledby="next-step-heading"
+                  >
+                    <div
+                      className={
+                        "next-step-symbol " + (high ? "attention" : "")
+                      }
+                    >
+                      <FileSearch size={24} />
+                    </div>
+                    <div>
+                      <span className="eyebrow">
+                        {running ? "SCAN IN PROGRESS" : "START HERE"}
+                      </span>
+                      <h2 id="next-step-heading">
+                        {running
+                          ? "Your website is coming into focus."
+                          : high
+                            ? `${high} high-priority ${high === 1 ? "finding needs" : "findings need"} a closer look.`
+                            : affected
+                              ? `${affected} ${affected === 1 ? "page is" : "pages are"} ready for your review.`
+                              : scan.status === "failed"
+                                ? "Let’s get this scan back on track."
+                                : "Explore the pages behind your results."}
+                      </h2>
+                      <p>
+                        {running
+                          ? "Pages are available as they’re read. You can keep exploring while the scan runs."
+                          : high
+                            ? "Start with response errors, missing titles and broken internal links."
+                            : "Review the evidence, then save the changes that make sense for your site."}
+                      </p>
+                    </div>
+                    <button
+                      className="button primary"
+                      onClick={() => {
+                        choose(issues.length ? "issues" : "pages");
+                        if (high) setSeverity("high");
+                      }}
+                    >
+                      {issues.length ? "Review findings" : "Explore pages"}
+                      <ArrowRight size={16} />
+                    </button>
+                  </section>
                   <div className="metrics">
                     <Metric
                       label="Pages read"
@@ -653,64 +827,11 @@ function App() {
                       icon={Link2}
                     />
                   </div>
-                  <section
-                    className="panel scan-ai-actions"
-                    aria-labelledby="scan-ai-heading"
-                  >
-                    <div className="section-heading">
-                      <div>
-                        <h2 id="scan-ai-heading">
-                          <Sparkles size={19} /> Explore this website with AI
-                        </h2>
-                        <p>
-                          Choose an analysis for{" "}
-                          <strong>{host(scan.url)}</strong>. Uses this scan’s
-                          page evidence and your NVIDIA connection.
-                        </p>
-                      </div>
-                      <span className="ai-chip">
-                        {
-                          pages.filter(
-                            (p) =>
-                              p.status >= 200 && p.status < 300 && !p.error,
-                          ).length
-                        }{" "}
-                        successful pages
-                      </span>
-                    </div>
-                    <div className="scan-ai-grid">
-                      {AI_TOOLS.map((tool) => (
-                        <button
-                          key={tool.id}
-                          className="scan-ai-action"
-                          disabled={
-                            running ||
-                            !pages.some(
-                              (p) =>
-                                p.status >= 200 && p.status < 300 && !p.error,
-                            )
-                          }
-                          onClick={() => openAi(tool.id)}
-                        >
-                          <div>
-                            <strong>{tool.name}</strong>
-                            <span>{tool.description}</span>
-                          </div>
-                          <ArrowUpRight size={17} />
-                        </button>
-                      ))}
-                    </div>
-                    <p className="ai-small">
-                      Choose an option to review its settings before running. AI
-                      ideas require review; search volume and rankings are not
-                      measured.
-                    </p>
-                  </section>
                   <div className="overview-grid">
                     <section className="panel findings-summary">
                       <div className="section-heading">
                         <div>
-                          <h2>Your next useful fixes</h2>
+                          <h2>What needs attention</h2>
                           <p>Grouped by check across the scanned pages</p>
                         </div>
                         <button
@@ -758,13 +879,13 @@ function App() {
                     </section>
                     <section className="panel coverage">
                       <div className="section-heading">
-                        <h2>Know the scan’s limits</h2>
+                        <h2>Scan coverage</h2>
                         <CircleHelp size={18} />
                       </div>
                       <div className="coverage-icon">
                         <Globe2 size={38} />
                       </div>
-                      <h3>Evidence, with the edges visible.</h3>
+                      <h3>What this scan includes</h3>
                       <p>
                         This scan reads server HTML. It does not run page
                         JavaScript or measure search rankings.
@@ -795,6 +916,69 @@ function App() {
                       </button>
                     </section>
                   </div>
+                  <section
+                    className="panel scan-ai-actions"
+                    aria-labelledby="scan-ai-heading"
+                  >
+                    <div className="section-heading">
+                      <div>
+                        <h2 id="scan-ai-heading">
+                          <Sparkles size={19} /> Go further with AI
+                        </h2>
+                        <p>
+                          Choose an analysis for{" "}
+                          <strong>{host(scan.url)}</strong>. Uses this scan’s
+                          page evidence and your NVIDIA connection.
+                        </p>
+                      </div>
+                      <button
+                        className="text-button"
+                        onClick={() => openAi("keywords")}
+                      >
+                        All 9 research tools <ArrowRight size={14} />
+                      </button>
+                      <span className="ai-chip sr-only">
+                        {
+                          pages.filter(
+                            (p) =>
+                              p.status >= 200 && p.status < 300 && !p.error,
+                          ).length
+                        }{" "}
+                        successful pages
+                      </span>
+                    </div>
+                    <div className="scan-ai-grid">
+                      {AI_TOOLS.filter((tool) =>
+                        ["keywords", "competitors", "optimize"].includes(
+                          tool.id,
+                        ),
+                      ).map((tool) => (
+                        <button
+                          key={tool.id}
+                          className="scan-ai-action"
+                          disabled={
+                            running ||
+                            !pages.some(
+                              (p) =>
+                                p.status >= 200 && p.status < 300 && !p.error,
+                            )
+                          }
+                          onClick={() => openAi(tool.id)}
+                        >
+                          <div>
+                            <strong>{tool.name}</strong>
+                            <span>{tool.description}</span>
+                          </div>
+                          <ArrowUpRight size={17} />
+                        </button>
+                      ))}
+                    </div>
+                    <p className="ai-small">
+                      Choose an option to review its settings before running. AI
+                      ideas require review; search volume and rankings are not
+                      measured.
+                    </p>
+                  </section>
                   {scan.notice.map((n, i) => (
                     <p className="notice" key={i}>
                       <CircleHelp size={14} />
@@ -842,6 +1026,9 @@ function App() {
                       <ArrowDownToLine size={15} />
                       CSV
                     </a>
+                    <span className="result-count" aria-live="polite">
+                      {filtered.length} of {issues.length} findings
+                    </span>
                   </div>
                   <div className="finding-list">
                     {filtered.map((i) => (
@@ -887,7 +1074,7 @@ function App() {
                 </section>
               )}
               {view === "pages" && (
-                <section className="panel">
+                <section className="panel page-inventory">
                   <div className="table-toolbar">
                     <label className="search-input">
                       <Search size={17} />
@@ -898,7 +1085,16 @@ function App() {
                         onChange={(e) => setQuery(e.target.value)}
                       />
                     </label>
-                    <span>{pages.length} pages read</span>
+                    <span aria-live="polite">
+                      {
+                        pages.filter((p) =>
+                          (p.url + " " + p.title)
+                            .toLowerCase()
+                            .includes(query.toLowerCase()),
+                        ).length
+                      }{" "}
+                      of {pages.length} pages
+                    </span>
                   </div>
                   <div className="table-scroll">
                     <table>
@@ -957,11 +1153,18 @@ function App() {
                       </tbody>
                     </table>
                   </div>
+                  {!pages.some((p) =>
+                    (p.url + " " + p.title)
+                      .toLowerCase()
+                      .includes(query.toLowerCase()),
+                  ) && (
+                    <Empty text="No pages match your search. Try a different title or URL." />
+                  )}
                 </section>
               )}
               {view === "links" && (
                 <>
-                  <section className="panel">
+                  <section className="panel connections-panel">
                     <div className="section-heading">
                       <div>
                         <h2>Page connections</h2>
@@ -1050,7 +1253,7 @@ function App() {
                 <section className="panel">
                   <div className="section-heading">
                     <div>
-                      <h2>Drafts you can stand behind</h2>
+                      <h2>Saved drafts</h2>
                       <p>
                         Review a page to add a title, description or image-alt
                         draft.
@@ -1072,11 +1275,13 @@ function App() {
                         <button
                           className="icon-button"
                           aria-label="Remove draft"
-                          onClick={() =>
+                          onClick={() => {
+                            setUndoRepair({ scanId: scan.id, repair: r });
                             setRepairs((prev) =>
                               prev.filter((x) => x.id !== r.id),
-                            )
-                          }
+                            );
+                            setToast("Draft removed from your plan.");
+                          }}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -1122,6 +1327,26 @@ function App() {
               )}
             </>
           )}
+          {view === "overview" && (
+            <details className="data-disclosure">
+              <summary>
+                <ArrowDownToLine size={15} /> Import & backup{" "}
+                <ChevronRight size={14} />
+              </summary>
+              <ScanBackup
+                scan={scan}
+                repairs={repairs}
+                imported={(value) => {
+                  setScan(value);
+                  choose("overview");
+                  refreshHistory();
+                  setToast(
+                    "Scan imported into this browser. Review draft changes before export.",
+                  );
+                }}
+              />
+            </details>
+          )}
           <footer>
             <span>
               {hosted ? "SEO Workbench · Private" : "Local SEO Workbench"}
@@ -1141,6 +1366,10 @@ function App() {
           close={() => setDetail(null)}
           findings={issues.filter((i) => i.url === detail.url).length}
           analyze={() => openAi("optimize", detail.url)}
+          viewPlan={() => {
+            setDetail(null);
+            choose("repairs");
+          }}
         />
       )}{" "}
       {help && (
@@ -1195,6 +1424,21 @@ function App() {
         <div className="toast" role="status">
           <Check size={16} />
           {toast}
+          {undoRepair && undoRepair.scanId === scan?.id && (
+            <button
+              onClick={() => {
+                const repair = undoRepair.repair;
+                setRepairs((prev) => [
+                  ...prev.filter((r) => r.id !== repair.id),
+                  repair,
+                ]);
+                setUndoRepair(null);
+                setToast("Draft restored.");
+              }}
+            >
+              Undo
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1241,8 +1485,8 @@ function HistoryPanel({
     history.length > 0 && (
       <section className="panel history">
         <div className="section-heading">
-          <h2>Previous scans</h2>
-          <span>Saved locally</span>
+          <h2>Recent scans</h2>
+          <span>Saved in this browser</span>
         </div>
         {history.slice(0, 6).map((h) => (
           <button key={h.id} onClick={() => select(h.id)}>
@@ -1265,6 +1509,7 @@ function PageDrawer({
   close,
   findings,
   analyze,
+  viewPlan,
 }: {
   page: Page;
   repairs: Repair[];
@@ -1272,6 +1517,7 @@ function PageDrawer({
   close: () => void;
   findings: number;
   analyze: () => void;
+  viewPlan: () => void;
 }) {
   const [field, setField] = useState<Repair["field"]>("title"),
     [image, setImage] = useState(0),
@@ -1285,7 +1531,20 @@ function PageDrawer({
   const id =
     page.url + field + (field === "alt_text" ? page.images[image]?.src : "");
   const existing = repairs.find((r) => r.id === id);
-  useEffect(() => setValue(existing?.value || original), [id]);
+  useEffect(() => {
+    try {
+      const draft = JSON.parse(
+        localStorage.getItem("seo:editor:" + id) || "null",
+      );
+      setValue(
+        draft?.original === original && typeof draft.value === "string"
+          ? draft.value
+          : existing?.value || original,
+      );
+    } catch {
+      setValue(existing?.value || original);
+    }
+  }, [id]);
   return (
     <div className="scrim" onClick={close}>
       <aside
@@ -1399,15 +1658,31 @@ function PageDrawer({
             <textarea
               rows={4}
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(e) => {
+                setValue(e.target.value);
+                try {
+                  localStorage.setItem(
+                    "seo:editor:" + id,
+                    JSON.stringify({ original, value: e.target.value }),
+                  );
+                } catch {
+                  /* The editor remains usable when browser storage is full. */
+                }
+              }}
               placeholder="Write an accurate replacement…"
             />
           </label>
           <div className="editor-footer">
-            <small>{value.length} characters · written by you</small>
+            <small>
+              {value.length} characters · editing stays in this browser
+            </small>
             <button
               className="button primary"
-              disabled={!value.trim() || value === original}
+              disabled={
+                !value.trim() ||
+                value === original ||
+                existing?.value === value.trim()
+              }
               onClick={() =>
                 save({
                   id,
@@ -1425,6 +1700,14 @@ function PageDrawer({
               Save draft
             </button>
           </div>
+          {existing?.value === value.trim() && (
+            <div className="draft-saved">
+              <Check size={15} /> Saved in your repair plan{" "}
+              <button className="text-button" onClick={viewPlan}>
+                View plan <ArrowRight size={14} />
+              </button>
+            </div>
+          )}
           <p className="notice">
             Saving creates a local draft. Export and review it in WordPress
             before applying.

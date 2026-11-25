@@ -83,10 +83,10 @@ export default function AccessGate({
           <ShieldCheck size={30} />
         </span>
         <p className="eyebrow">SEO WORKBENCH · PRIVATE WORKSPACE</p>
-        <h1>Your website research, protected.</h1>
+        <h1>Welcome to your workbench.</h1>
         <p>
-          Sign in to crawl public websites, review SEO evidence and work with
-          your own AI connection.
+          Sign in to review your website, find useful improvements and build a
+          plan.
         </p>
         {!status && !error ? (
           <p role="status">
@@ -128,8 +128,8 @@ export default function AccessGate({
           </p>
         )}
         <small>
-          Scan history and research are saved in this browser. AI credentials
-          use encrypted, HttpOnly session cookies.
+          Use your owner workspace password. Your NVIDIA API key is connected
+          separately after sign-in.
         </small>
       </section>
     </main>

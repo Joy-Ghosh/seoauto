@@ -39,7 +39,7 @@ Open `http://127.0.0.1:4318` and use the password in the private access file. Th
 
 ## Publish
 
-Use a private GitHub repository. The `.gitignore` and `.vercelignore` exclude scan data, credentials, local environment files, dependency folders and generated archives. The GitHub checks run tests, the production build and a dependency audit. GitHub Actions are pinned to verified publisher commit hashes.
+This release uses the owner-provided public source repository `Joy-Ghosh/seoauto`; workspace access still requires owner sign-in. The `.gitignore` and `.vercelignore` exclude scan data, credentials, local environment files, dependency folders and generated archives. The GitHub checks run tests, the production build and a dependency audit. GitHub Actions are pinned to verified publisher commit hashes. The repository is connected to the Vercel project for future deployments.
 
 The Vercel build runs `npm run build`, serves `dist`, and routes `/api/*` to the stateless Node handler. Function duration is capped at 300 seconds. No local data folder, environment file, access-password file or provider key belongs in a deployment upload.
 
@@ -68,3 +68,4 @@ The crawler reads response HTML, not target-page JavaScript. It does not fetch s
 Download the companion ZIP from Repair plan. Install it manually on a staging WordPress site first, then import and preview the exported JSON plan under Tools → SEO repair plans. Original-value and permission checks guard writes; backups support guarded restoration. Titles, descriptions and shared media alt text are supported. H1s, body content, links, archives and external images require manual editing. Live WordPress/theme/cache integration has not been validated.
 
 See [SECURITY.md](SECURITY.md) for the access and network model, and [docs/PHASES.md](docs/PHASES.md) for the deferred ChatGPT MCP work.
+

@@ -6,7 +6,9 @@
 - Hosted browser QA used separate disposable credentials. A real example.com crawl completed; a metadata/private-IP target was rejected. History survived reload, a page repair draft appeared in Repair plan, and owner sign-out/sign-in worked. Desktop and 390px layouts were inspected.
 - Browser scan-import verification was blocked by the Chrome extension's file-URL permission. The setting was left unchanged. The import schema and field allowlist were reviewed.
 - Hosted NVIDIA transport is covered by simulated-provider tests; the live NVIDIA result below was from the original localhost mode, before these hosted changes.
-- GitHub publication and Vercel deployment remain pending account authentication. The Vercel project exists, but its connector rejected environment-variable provisioning; the CLI login is expired. No functional cloud release is claimed.
+- Source is published to `Joy-Ghosh/seoauto`. GitHub Actions passed tests, build and dependency audit for commit `44eb09d45e880f2d5ff209570d44f1ba942873e1`.
+- Production is READY at https://seo-workbench-ten.vercel.app. Live checks confirmed configured owner authentication, successful sign-in, a completed streamed example.com crawl with one page, and HTTP 401 for an unauthenticated AI endpoint. The corrected deployment had no error/fatal runtime logs during verification. The production sign-in screen was also opened in Chrome.
+- The first deployment exposed an ESM import packaging error. Server imports now use compiled `.js` paths, and Node is constrained below version 25; tests and build passed again before the corrected deployment. GitHub is linked for subsequent deployments. Secrets were provisioned through authenticated CLI stdin and excluded from source and archives.
 - This is a private single-owner workspace with browser-local persistence, not a multi-user service. ChatGPT MCP integration is deferred to phase two. No live WordPress write was performed.
 
 ## NVIDIA AI Studio
@@ -26,3 +28,4 @@ The app does not have a live search engine, keyword metrics, rank tracker or ana
 The WordPress companion remains unverified against a live WordPress runtime; its PHP syntax parser check passes.
 
 Local hardware was inspected for a model recommendation: NVIDIA GeForce RTX 3050 Laptop GPU with 4 GB VRAM and about 15 GB usable system RAM. Qwen3 4B via Ollama was recommended as a local option, but neither Ollama nor a local model was installed or integrated during this work. The app's current AI provider is NVIDIA.
+

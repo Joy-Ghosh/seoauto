@@ -1,0 +1,9 @@
+node_modules
+data
+.env*
+!.env.example
+*.zip
+*access*.txt
+*secrets*.json
+work
+.git

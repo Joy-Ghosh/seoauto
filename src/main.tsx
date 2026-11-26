@@ -36,6 +36,7 @@ import { api, hosted } from "./client";
 import AccessGate, { useOwnerSession } from "./AccessGate";
 import { exportScan, exportCsv } from "./exports";
 import "./workspace.css";
+import WebsiteTechnology from "./WebsiteTechnology";
 const AiStudio = lazy(() => import("./AiStudio"));
 const ScanBackup = lazy(() => import("./ScanBackup"));
 const SearchConsolePanel = lazy(() => import("./SearchConsolePanel"));
@@ -564,6 +565,7 @@ function App() {
               </a>
             )}
           </div>
+          {scan && !composerOpen && <WebsiteTechnology key={scan.id} scan={scan} />}
           {(["issues", "pages", "links", "search", "verify", "titles"].includes(view)) && (
             <div className="page-segments" role="group" aria-label="Page views">
               <button aria-pressed={view === "issues"} onClick={() => choose("issues")}>Issues to fix</button>
@@ -790,6 +792,7 @@ function App() {
                           : "Scan in progress"}
                   </strong>
                   <span>{host(scan.url)}</span>
+                  <span className="scan-counts">{pages.length} pages read · {scan.issues.length} findings</span>
                   {host(scan.url) === "sample.example" && (
                     <span className="ai-chip">
                       Sample audit · demonstration
@@ -809,7 +812,7 @@ function App() {
                   <section className="workflow-path" aria-label="Your website workflow">
                     <button onClick={() => choose("issues")}><span>1</span><div><strong>Review the audit</strong><small>{affected} pages need review</small></div><ArrowRight size={18} /></button>
                     <button onClick={() => openAi("priorities")} disabled={running || !pages.length}><span>2</span><div><strong>Choose an AI tool</strong><small>Ideas, comparisons and drafts</small></div><ArrowRight size={18} /></button>
-                    <button onClick={() => choose("repairs")}><span>3</span><div><strong>Review saved changes</strong><small>{repairs.length ? `${repairs.length} drafts ready to review` : "Save drafts, then export"}</small></div><ArrowRight size={18} /></button>
+                    <button onClick={() => choose("repairs")}><span>3</span><div><strong>Review saved changes</strong><small>{repairs.length ? `${repairs.length} ${repairs.length === 1 ? "draft" : "drafts"} ready to review` : "Save drafts, then export"}</small></div><ArrowRight size={18} /></button>
                   </section>
                   <section
                     className="next-step"

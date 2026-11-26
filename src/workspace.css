@@ -24,6 +24,33 @@
   font-size: 15px;
   line-height: 1.5;
 }
+/* Website context remains visible across audit tools, including older scans. */
+.website-technology {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  margin: 0 0 24px;
+  padding: 20px 24px;
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+.technology-heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.technology-symbol { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--accent); color: var(--green); flex-shrink: 0; }
+.technology-heading > div { flex: 1; min-width: 180px; }
+.technology-heading h2 { margin: 0; font-size: 16px; line-height: 1.5; }
+.technology-heading p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.technology-heading .button { min-height: 44px; }
+.technology-body { margin-top: 16px; }
+.technology-badges { display: flex; flex-wrap: wrap; gap: 12px; padding: 0; margin: 0; list-style: none; }
+.technology-badges li { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 16px; padding: 12px 16px; border-radius: 8px; background: var(--raised); border: 1px solid var(--line); min-width: 180px; }
+.technology-badges li > span { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.technology-badges strong { font-size: 17px; overflow-wrap: anywhere; }
+.technology-badges small { font-size: 12px; color: var(--success); }
+.technology-empty { margin: 0; color: var(--muted); font-size: 14px; }
+.technology-details { margin-top: 12px; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.technology-details summary { min-height: 44px; display: list-item; align-content: center; cursor: pointer; width: fit-content; max-width: 100%; }
+.technology-details p { margin: 8px 0; max-width: 90ch; }
+.technology-heading .button:active { background: var(--accent); }
 * {
   box-sizing: border-box;
 }
@@ -2662,3 +2689,36 @@ footer .guide-link,footer .text-button{display:inline-flex;align-items:center;mi
 @media(max-width:900px){.integration-options{grid-template-columns:1fr}.search-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.problem-ai-assistant{padding:16px}.integration-options>article{padding:16px}.measurement-actions>.button{width:100%}.page-segments{display:flex;max-width:100%}.page-segments button{white-space:normal}.search-metrics strong{font-size:22px}.skeleton-heading{font-size:20px}}
 .batch-titles>p{margin:12px 0;max-width:80ch}.batch-titles label:not(.ai-consent){display:grid;gap:8px;margin:16px 0;font-weight:600;font-size:14px}.batch-titles input:not([type=checkbox]),.batch-titles select{min-height:44px;width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface);color:var(--ink);font-size:16px}.batch-page-list{max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:0 16px;margin:16px 0}.batch-titles label.batch-page-option{display:flex;align-items:flex-start;gap:12px;min-height:44px;font-weight:400;padding:8px 0}.batch-page-option input{width:20px;height:20px;flex-shrink:0;margin-top:3px}.batch-page-option span{min-width:0}.batch-page-option strong,.batch-page-option small{display:block;overflow-wrap:anywhere}.batch-page-option small{font-size:13px;color:var(--muted);margin-top:4px}.batch-titles .ai-consent{display:flex;gap:12px;align-items:flex-start;margin:20px 0}.batch-titles .ai-consent input{width:20px;height:20px;flex-shrink:0}.batch-titles .button{margin:8px 8px 8px 0}.competitor-workflow{padding:20px;background:var(--raised);border:1px solid var(--line);border-radius:10px;margin:20px 0}.competitor-workflow h3{margin:0 0 12px}.competitor-workflow ol{padding-left:22px}.competitor-workflow li{margin:10px 0}.technology-evidence button{min-height:44px}
+
+/* Consistent audit navigation, readable context, and predictable keyboard targets. */
+.page-segments { width:100%; gap:6px; padding:6px; border-radius:12px; }
+.page-segments button { flex:1 1 auto; min-height:44px; font-size:13px; font-weight:550; padding:10px 14px; }
+.page-segments button:hover:not([aria-pressed="true"]) { background:var(--raised); color:var(--ink); }
+.site-switcher select { min-height:44px; max-width:min(460px, 40vw); font-size:14px; padding-right:24px; }
+.scan-context { flex-wrap:wrap; row-gap:8px; font-size:13px; }
+.scan-context time { font-variant-numeric:tabular-nums; }
+.workspace-signout { font-size:13px; }
+button, a, summary { -webkit-tap-highlight-color:transparent; }
+button:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visible { outline:3px solid var(--green); outline-offset:3px; }
+@media(max-width:700px) {
+  .website-technology { padding:16px; margin-bottom:20px; }
+  .technology-heading { gap:10px; align-items:flex-start; }
+  .technology-heading > div { min-width:0; flex-basis:calc(100% - 52px); }
+  .technology-heading .button { width:100%; justify-content:center; }
+  .technology-badges { gap:8px; }
+  .technology-badges li { flex:1 1 160px; min-width:0; }
+  .page-segments { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .page-segments button { padding:10px 8px; line-height:1.4; }
+  .site-switcher select { max-width:100%; font-size:13px; }
+  .topbar { padding:0 12px; }
+  .topbar-actions { flex-shrink:0; }
+  .new-scan-button { font-size:12px; }
+}
+.scan-counts { padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--muted); font-variant-numeric:tabular-nums; }
+@media(max-width:700px) {
+  .technology-badges li { flex-basis:120px; grid-template-columns:1fr; gap:2px; padding:10px 12px; }
+  .technology-badges strong { font-size:16px; }
+  .technology-badges small { margin-top:2px; }
+}
+.technology-details summary { display:flex; align-items:center; gap:12px; }
+.technology-details summary::after { margin-left:auto; }

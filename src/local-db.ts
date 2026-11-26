@@ -45,6 +45,17 @@ async function save(store: string, value: unknown) {
   });
 }
 export const localDb = {
+  deleteScan: async (id: string) => {
+    const db = await database();
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(["scans", "reports"], "readwrite");
+      tx.objectStore("scans").delete(id);
+      const cursor = tx.objectStore("reports").openCursor();
+      cursor.onsuccess = () => { const row = cursor.result; if (row) { if (row.value.scanId === id) row.delete(); row.continue(); } };
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () => reject(new Error("Permanent deletion failed. Your scan may still be in Trash; retry."));
+    });
+  },
   scans: () => read<Scan[]>("scans"),
   scan: (id: string) => read<Scan | undefined>("scans", id),
   saveScan: (scan: Scan) => save("scans", scan),
@@ -53,5 +64,16 @@ export const localDb = {
       .filter((r) => r.scanId === scanId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 20),
-  saveReport: (report: AiResult) => save("reports", report),
+  saveReport: async (report: AiResult) => {
+    const db = await database();
+    return new Promise<void>((resolve, reject) => {
+      // The shared transaction prevents a late AI response recreating data after deletion in another tab.
+      const tx = db.transaction(["scans", "reports"], "readwrite");
+      const scan = tx.objectStore("scans").get(report.scanId);
+      scan.onsuccess = () => { if (!scan.result || scan.result.deletedAt) tx.abort(); else tx.objectStore("reports").put(report); };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(new Error("Could not save research. Browser storage may be full or blocked."));
+      tx.onabort = () => reject(new Error("Research was not saved: the scan is unavailable or browser storage was interrupted."));
+    });
+  },
 };

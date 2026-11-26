@@ -43,10 +43,11 @@ const ScanBackup = lazy(() => import("./ScanBackup"));
 const SearchConsolePanel = lazy(() => import("./SearchConsolePanel"));
 const VerificationPanel = lazy(() => import("./VerificationPanel"));
 const BatchTitles = lazy(() => import("./BatchTitles"));
+const PageSpeedPanel = lazy(() => import("./PageSpeedPanel"));
 const PageEvidence = lazy(() => import("./PageEvidence"));
 const TechnologyPanel = lazy(() => import("./TechnologyPanel"));
-type View = "overview" | "issues" | "pages" | "links" | "repairs" | "ai" | "search" | "verify" | "titles";
-const views: View[] = ["overview", "issues", "pages", "links", "repairs", "ai", "search", "verify", "titles"];
+type View = "overview" | "issues" | "pages" | "links" | "repairs" | "ai" | "search" | "verify" | "titles" | "speed";
+const views: View[] = ["overview", "issues", "pages", "links", "repairs", "ai", "search", "verify", "titles", "speed"];
 type History = {
   id: string;
   url: string;
@@ -126,6 +127,7 @@ function App() {
     [busy, setBusy] = useState(false),
     [query, setQuery] = useState(""),
     [severity, setSeverity] = useState("all"),
+    [problemType, setProblemType] = useState("all"),
     [detail, setDetail] = useState<Page | null>(null),
     [repairs, setRepairs] = useState<Repair[]>([]),
     [help, setHelp] = useState(false),
@@ -157,6 +159,7 @@ function App() {
         setView(next);
         setQuery("");
         setSeverity("all");
+        setProblemType("all");
         setDetail(null);
       } else if (!location.hash) setView("overview");
     };
@@ -223,7 +226,7 @@ function App() {
     document.body.style.overflow = "hidden";
     const trap = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
-      const dialog = document.querySelector('[role="dialog"]');
+      const dialog = document.querySelector('[role="alertdialog"], [role="dialog"]');
       const items = [...(dialog?.querySelectorAll<HTMLElement>(
         "button:not([disabled]),a[href],select:not([disabled]),input:not([disabled]),textarea:not([disabled]),summary",
       ) || [])].filter(item => item.getClientRects().length > 0);
@@ -288,6 +291,7 @@ function App() {
   const filtered = issues.filter(
     (i) =>
       (severity === "all" || i.severity === severity) &&
+      (problemType === "all" || i.type === problemType) &&
       `${i.url} ${i.label} ${i.detail}`
         .toLowerCase()
         .includes(query.toLowerCase()),
@@ -319,6 +323,7 @@ function App() {
     setView(v);
     setQuery("");
     setSeverity("all");
+    setProblemType("all");
     window.scrollTo({ top: 0, behavior: "auto" });
     requestAnimationFrame(() =>
       heading.current?.focus({ preventScroll: true }),
@@ -426,10 +431,10 @@ function App() {
             <button
               key={n.id}
               className={
-                (view === n.id || (["pages", "links", "search", "verify", "titles"].includes(view) && n.id === "issues") ? "nav-item active" : "nav-item")
+                (view === n.id || (["pages", "links", "search", "verify", "titles", "speed"].includes(view) && n.id === "issues") ? "nav-item active" : "nav-item")
               }
               onClick={() => choose(n.id)}
-              aria-current={view === n.id || (["pages", "links", "search", "verify", "titles"].includes(view) && n.id === "issues") ? "page" : undefined}
+              aria-current={view === n.id || (["pages", "links", "search", "verify", "titles", "speed"].includes(view) && n.id === "issues") ? "page" : undefined}
             >
               <n.icon size={18} />
               <span className="desktop-nav-label">{n.label}</span>
@@ -543,7 +548,7 @@ function App() {
                         ? "Internal links"
                         : view === "ai"
                           ? "AI tools for this website"
-                          : view === "search" ? "Search performance" : view === "verify" ? "Change verification" : view === "titles" ? "Title suggestions by category" : "Saved changes"}
+                          : view === "speed" ? "Page speed" : view === "search" ? "Search performance" : view === "verify" ? "Change verification" : view === "titles" ? "Title suggestions by category" : "Saved changes"}
               </h1>
               <p>
                 {view === "overview"
@@ -558,7 +563,7 @@ function App() {
                         ? "Candidates from shared words in existing page content. Always review the placement."
                         : view === "ai"
                           ? "Use your NVIDIA key to turn page evidence into keyword ideas, content plans and reviewable improvements."
-                          : view === "search" ? "Optional Search Console data: import a CSV, connect Google, or skip it." : view === "verify" ? "Compare an older baseline with this scan and check what actually changed." : view === "titles" ? "Select pages, generate evidence-based title drafts, and save the suggestions you approve." : "Review your saved drafts, then export them when you’re ready."}
+                          : view === "speed" ? "Run a Google speed test or import a free Lighthouse report from your computer." : view === "search" ? "Optional Search Console data: import a CSV, connect Google, or skip it." : view === "verify" ? "Compare an older baseline with this scan and check what actually changed." : view === "titles" ? "Select pages, generate evidence-based title drafts, and save the suggestions you approve." : "Review your saved drafts, then export them when you’re ready."}
               </p>
             </div>
             {scan && scan.status !== "running" && (
@@ -575,7 +580,7 @@ function App() {
             )}
           </div>
           {scan && !composerOpen && <WebsiteTechnology key={scan.id} scan={scan} />}
-          {(["issues", "pages", "links", "search", "verify", "titles"].includes(view)) && (
+          {(["issues", "pages", "links", "search", "verify", "titles", "speed"].includes(view)) && (
             <div className="page-segments" role="group" aria-label="Page views">
               <button aria-pressed={view === "issues"} onClick={() => choose("issues")}>Issues to fix</button>
               <button
@@ -593,6 +598,7 @@ function App() {
               <button aria-pressed={view === "search"} onClick={() => choose("search")}>Search Console</button>
               <button aria-pressed={view === "verify"} onClick={() => choose("verify")}>Verify changes</button>
               <button aria-pressed={view === "titles"} onClick={() => choose("titles")}>Generate titles</button>
+              <button aria-pressed={view === "speed"} onClick={() => choose("speed")}>Page speed</button>
             </div>
           )}
           {error && scan && !composerOpen && (
@@ -817,7 +823,7 @@ function App() {
               )}
               {view === "overview" && (
                 <>
-                  <div className="measurement-actions"><button className="button secondary" onClick={() => choose("search")}>Add Search Console data (optional)</button><button className="button secondary" onClick={() => choose("verify")}>Verify published changes</button></div>
+                  <div className="measurement-actions"><button className="button secondary" onClick={() => choose("speed")}>Check page speed</button><button className="button secondary" onClick={() => choose("search")}>Add Search Console data (optional)</button><button className="button secondary" onClick={() => choose("verify")}>Verify published changes</button></div>
                   <section className="workflow-path" aria-label="Your website workflow">
                     <button onClick={() => choose("issues")}><span>1</span><div><strong>Review the audit</strong><small>{affected} pages need review</small></div><ArrowRight size={18} /></button>
                     <button onClick={() => openAi("priorities")} disabled={running || !pages.length}><span>2</span><div><strong>Choose an AI tool</strong><small>Ideas, comparisons and drafts</small></div><ArrowRight size={18} /></button>
@@ -1107,6 +1113,8 @@ function App() {
                       <ArrowDownToLine size={15} />
                       CSV
                     </a>
+                    <select aria-label="Filter by problem type" value={problemType} onChange={event => setProblemType(event.target.value)}><option value="all">All problem types</option>{groups.map(group => <option value={group.type} key={group.type}>{group.label} ({group.count})</option>)}</select>
+                    {(query || severity !== "all" || problemType !== "all") && <button className="button secondary" onClick={() => { setQuery(""); setSeverity("all"); setProblemType("all"); }}>Clear filters</button>}
                     <span className="result-count" aria-live="polite">
                       {filtered.length} of {issues.length} findings
                     </span>
@@ -1141,7 +1149,7 @@ function App() {
                       </article>
                     ))}
                     {!filtered.length && (
-                      <Empty text="No findings match this view." />
+                      <Empty text={issues.length ? "No findings match these filters. Clear filters to see all problems." : "No findings were reported in this scanned subset. Add PageSpeed or review page coverage for checks beyond HTML."} />
                     )}
                   </div>
                 </section>
@@ -1323,6 +1331,7 @@ function App() {
                 </>
               )}
               {view === "search" && <DeferredTool label="Search Console"><SearchConsolePanel key={scan.id} scan={scan} inspect={setDetail} /></DeferredTool>}
+              {view === "speed" && <DeferredTool label="Page speed"><PageSpeedPanel key={scan.id} scan={scan} /></DeferredTool>}
               {view === "verify" && <DeferredTool label="Change verification"><VerificationPanel key={scan.id} scan={scan} inspect={setDetail} /></DeferredTool>}
               {view === "titles" && <DeferredTool label="Title suggestions"><BatchTitles key={scan.id} scan={scan} repairs={repairs} save={addRepair} setup={() => openAi("optimize")} plan={() => choose("repairs")} /></DeferredTool>}
               {view === "repairs" && (
@@ -1377,7 +1386,7 @@ function App() {
                     </article>
                   ))}
                   {!repairs.length && (
-                    <Empty text="Your repair plan is empty. Open a page, review its evidence, and write a draft." />
+                    <><Empty text="Your repair plan is empty. Open a page, review its evidence, and write a draft. AI is optional." /><div className="measurement-actions"><button className="button secondary" onClick={() => choose("pages")}>Choose a page to improve</button><button className="button secondary" onClick={() => choose("titles")}>Generate title suggestions</button></div></>
                   )}
                   <div className="plugin-note">
                     <ShieldCheck size={22} />

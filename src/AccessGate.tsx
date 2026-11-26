@@ -83,10 +83,9 @@ export default function AccessGate({
           <ShieldCheck size={30} />
         </span>
         <p className="eyebrow">SEO WORKBENCH · PRIVATE WORKSPACE</p>
-        <h1>Welcome to your workbench.</h1>
+        <h1>Owner workspace</h1>
         <p>
-          Sign in to review your website, find useful improvements and build a
-          plan.
+          This hosted dashboard is currently private. Use the workspace password supplied by its owner, or start with the public tools below.
         </p>
         {!status && !error ? (
           <p role="status">
@@ -128,9 +127,10 @@ export default function AccessGate({
           </p>
         )}
         <small>
-          Use your owner workspace password. Your NVIDIA API key is connected
-          separately after sign-in.
+          This password is separate from your NVIDIA API key. It is not a public account registration.
         </small>
+        <a className="button secondary public-tools-link" href="/public.html">Use free tools without signing in</a>
+        <details className="access-explanation"><summary>Why do I need a workspace password?</summary><p>It protects the owner's hosted crawler and AI endpoints from unrestricted use. Scan history stays in the browser; this is a single-owner workspace, not separate customer accounts.</p><p>For a full audit without using the owner's compute, run the open-source app locally. Public PageSpeed and Lighthouse tools are available without this password.</p><a href="https://github.com/Joy-Ghosh/seoauto" target="_blank" rel="noreferrer">Get the open-source workbench</a></details>
       </section>
     </main>
   );

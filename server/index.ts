@@ -10,7 +10,7 @@ import { createSearchConsoleApi } from "./search-console.js";
 import { inspectTechnology } from "./inspect-technology.js";
 import type { Scan } from "../src/types.js";
 import { setScanTrash } from "../src/scan-trash.js";
-import { saveScanFile } from "./scan-store.js";
+import { saveScanFile, purgeScanFiles } from "./scan-store.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const data = path.join(root, "data");
 await mkdir(data, { recursive: true });
@@ -153,12 +153,19 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const match = u.pathname.match(
-        /^\/api\/scans\/([\w-]+)(?:\/(stop|report|csv|trash|restore))?$/,
+        /^\/api\/scans\/([\w-]+)(?:\/(stop|report|csv|trash|restore|purge))?$/,
       );
       const scan = match && scans.get(match[1]);
       if (!scan) {
         send(res, 404, { error: "Scan not found." });
         return;
+      }
+      if (req.method === "POST" && match![2] === "purge") {
+        let body = ""; for await (const part of req) { body += part; if (body.length > 1000) { send(res, 413, { error: "Request too large." }); return; } }
+        if (!scan.deletedAt || JSON.parse(body || "{}").confirm !== scan.id) { send(res, 400, { error: "Only a confirmed scan in Trash can be permanently deleted." }); return; }
+        if (controllers.has(scan.id) || aiApi.isBusy()) { send(res, 409, { error: "Wait for the current scan or AI request to finish before permanently deleting." }); return; }
+        await purgeScanFiles(data, scan); scans.delete(scan.id);
+        send(res, 200, { ok: true, removed: { id: scan.id, url: scan.url, pageUrls: scan.pages.map(page => page.url) } }); return;
       }
       if (req.method === "POST" && ["trash", "restore"].includes(match![2])) {
         if (scan.status === "running" || controllers.has(scan.id)) { send(res, 409, { error: "Stop the scan before deleting it." }); return; }

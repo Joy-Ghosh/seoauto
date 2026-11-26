@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { setScanTrash } from "../src/scan-trash.js";
-import { saveScanFile } from "../server/scan-store.js";
+import { saveScanFile, purgeScanFiles } from "../server/scan-store.js";
+import { clearScanStorage } from "../src/delete-storage.js";
 import { api, configureClient } from "../src/client.js";
 import { localDb } from "../src/local-db.js";
 import type { Scan } from "../src/types.js";
@@ -45,3 +46,28 @@ test("hosted scan list excludes trash, restore returns it, and trashed scans can
   } finally { Object.assign(localDb, originals); configureClient(false); }
 });
 function fixtureWithDate(startedAt: string) { return { ...fixture(), startedAt }; }
+test("permanent local deletion removes the scan and its reports without touching another scan",async()=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),"seo-purge-")); const scan=setScanTrash(fixture(),false);
+  try { await saveScanFile(directory,scan); await mkdir(path.join(directory,"ai"));
+    await writeFile(path.join(directory,"ai","own.json"),JSON.stringify({scanId:scan.id})); await writeFile(path.join(directory,"ai","other.json"),JSON.stringify({scanId:"other-scan"}));
+    await purgeScanFiles(directory,scan);
+    await assert.rejects(readFile(path.join(directory,scan.id+".json"))); await assert.rejects(readFile(path.join(directory,"ai","own.json")));
+    assert.equal(JSON.parse(await readFile(path.join(directory,"ai","other.json"),"utf8")).scanId,"other-scan");
+  } finally { await rm(directory,{recursive:true,force:true}); }
+});
+test("permanent hosted deletion requires Trash and the exact confirmation identifier",async()=>{
+  const original={scan:localDb.scan,deleteScan:localDb.deleteScan,scans:localDb.scans}; let scan=fixture(); let deletes=0;
+  localDb.scan=async()=>scan; localDb.scans=async()=>[]; localDb.deleteScan=async id=>{assert.equal(id,scan.id);deletes++;}; configureClient(true);
+  try { await assert.rejects(api("/api/scans/trash-fixture/purge",{confirm:scan.id}),/Trash/); scan=setScanTrash(scan,false);
+    await assert.rejects(api("/api/scans/trash-fixture/purge",{confirm:"another-scan"}),/confirmed/); assert.equal(deletes,0);
+    await api("/api/scans/trash-fixture/purge",{confirm:scan.id}); assert.equal(deletes,1);
+  } finally {Object.assign(localDb,original);configureClient(false);}
+});
+test("browser cleanup isolates scan notes and retains shared site data while another scan uses it",()=>{
+  const data=new Map<string,string>([["repairs:trash-fixture","draft"],["repairs:other","keep"],["seo:issue-review:trash-fixture:https://example.com/","note"],["seo:search-data:example.com","shared"],["seo:editor:https://example.com/title","editor"]]);
+  const storage={get length(){return data.size},key:(i:number)=>[...data.keys()][i]??null,getItem:(key:string)=>data.get(key)??null,removeItem:(key:string)=>{data.delete(key);}} as Storage;
+  const scan={id:"trash-fixture",url:"https://example.com/",pageUrls:["https://example.com/"]};
+  clearScanStorage(scan,[{url:"https://example.com/another"}],storage,storage);
+  assert.equal(data.has("repairs:trash-fixture"),false); assert.equal(data.has("repairs:other"),true); assert.equal(data.has("seo:search-data:example.com"),true);
+  clearScanStorage(scan,[],storage,storage); assert.equal(data.has("seo:search-data:example.com"),false);assert.equal(data.has("seo:editor:https://example.com/title"),false);
+});

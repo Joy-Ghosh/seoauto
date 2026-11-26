@@ -2,11 +2,13 @@ import type { Scan } from "./types";
 import type { AiResult } from "./ai-types";
 import { localDb } from "./local-db";
 import { setScanTrash } from "./scan-trash";
+import { clearScanStorage, type RemovedScan } from "./delete-storage";
 export let hosted = false;
 export function configureClient(value: boolean) {
   hosted = value;
 }
 const active = new Map<string, { scan: Scan; abort: AbortController }>();
+const researching = new Set<string>();
 export async function http<T>(
   path: string,
   body?: unknown,
@@ -139,7 +141,15 @@ export async function api<T>(
   body?: unknown,
   signal?: AbortSignal,
 ): Promise<T> {
-  if (!hosted) return http<T>(path, body, signal);
+  if (!hosted) {
+    const result = await http<T>(path, body, signal);
+    if (path.endsWith("/purge")) {
+      const removed = (result as { removed: RemovedScan }).removed;
+      try { clearScanStorage(removed, [...await http<{url:string}[]>("/api/scans"), ...await http<{url:string}[]>("/api/scans?trash=1")], localStorage, sessionStorage); }
+      catch { return { ...result, warning: "Scan and research deleted, but some browser notes could not be cleared. Clear this site's browser data if needed." } as T; }
+    }
+    return result;
+  }
   if ((path === "/api/scans" || path === "/api/scans?trash=1") && body === undefined) {
     const scans = await localDb.scans();
     for (const scan of scans)
@@ -191,7 +201,7 @@ export async function api<T>(
     void remoteCrawl(scan, abort);
     return { id: scan.id } as T;
   }
-  const match = path.match(/^\/api\/scans\/([\w-]+)(?:\/(stop|trash|restore))?$/);
+  const match = path.match(/^\/api\/scans\/([\w-]+)(?:\/(stop|trash|restore|purge))?$/);
   if (match) {
     if (match[2] === "stop") {
       active.get(match[1])?.abort.abort();
@@ -199,6 +209,15 @@ export async function api<T>(
     }
     const scan = active.get(match[1])?.scan || (await localDb.scan(match[1]));
     if (!scan) throw new Error("Scan not found in this browser.");
+    if (match[2] === "purge" && body) {
+      if (!scan.deletedAt || (body as { confirm?: string }).confirm !== scan.id) throw new Error("Only a confirmed scan in Trash can be permanently deleted.");
+      if (active.has(scan.id) || researching.has(scan.id)) throw new Error("Wait for this scan's current AI request to finish before deleting.");
+      await localDb.deleteScan(scan.id);
+      let warning = "";
+      try { clearScanStorage({ id: scan.id, url: scan.url, pageUrls: scan.pages.map(page => page.url) }, await localDb.scans(), localStorage, sessionStorage); }
+      catch { warning = "Scan and research deleted, but some browser notes could not be cleared. Clear site data if needed."; }
+      return { ok: true, warning } as T;
+    }
     if (["trash", "restore"].includes(match[2]) && body) {
       if (scan.status === "running" || active.has(scan.id)) throw new Error("Stop the scan before deleting it.");
       const next = setScanTrash(scan, match[2] === "restore");
@@ -215,14 +234,16 @@ export async function api<T>(
   if (path === "/api/ai/research" && body) {
     const input = body as { scanId: string; pageUrl?: string };
     const scan = await localDb.scan(input.scanId);
-    if (!scan) throw new Error("Open a saved scan first.");
-    const report = await http<AiResult>(
+    if (!scan || scan.deletedAt) throw new Error("Open a saved scan first. Restore it from Trash if needed.");
+    researching.add(scan.id);
+    try { const report = await http<AiResult>(
       path,
       { ...body, scan: compactEvidence(scan, input.pageUrl) },
       signal,
     );
     await localDb.saveReport(report);
     return report as T;
+    } finally { researching.delete(scan.id); }
   }
   return http<T>(path, body, signal);
 }

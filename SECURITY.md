@@ -33,3 +33,9 @@ The companion requires WordPress administrator/editor capabilities and nonces, v
 The app has no live SERP, search-volume, keyword-difficulty, backlink or analytics feed. Competitor suggestions from model knowledge are unverified; comparisons are grounded only in fetched pages. A local Ollama model is not integrated. Phase two needs durable project storage, scoped OAuth, per-user ownership and MCP-specific authorization before exposing tools to ChatGPT.
 
 Automated tests cover authentication, cookie tampering/isolation, cross-origin requests, DNS/range/redirect blocking, report restrictions and streaming. This is a tested implementation, not a security certification or a guarantee that all vulnerabilities have been eliminated.
+
+## Public speed tools
+
+`public.html` is a separate static tool entry; private hosted APIs still require the owner session. PageSpeed requests go directly from the browser to `https://www.googleapis.com`, after explicit URL-sharing consent. An optional personal Google API key is held only in component memory and cleared from the input on run. It is not stored or sent to the app server. Lighthouse imports are parsed as bounded JSON and rendered as escaped text; they never execute imported scripts.
+
+Permanent scan deletion removes scan/research records and scoped browser work, with Trash and exact-ID confirmation guards. Shared per-site data remains while another scan uses it. Atomic scan/report browser transactions prevent late AI responses from recreating records after deletion. External backups, other browsers and provider-held data are outside this operation's scope.

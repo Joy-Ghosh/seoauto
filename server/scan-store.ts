@@ -1,4 +1,4 @@
-import { writeFile, rename, rm } from "node:fs/promises";
+import { writeFile, rename, rm, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Scan } from "../src/types.js";
@@ -15,4 +15,15 @@ export function saveScanFile(directory: string, scan: Scan) {
   pending.set(target, operation);
   void operation.finally(() => { if (pending.get(target) === operation) pending.delete(target); }).catch(() => {});
   return operation;
+}
+export async function purgeScanFiles(directory: string, scan: Scan) {
+  await pending.get(path.join(directory, scan.id + ".json"));
+  let names: string[] = [];
+  try { names = await readdir(path.join(directory, "ai")); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  for (const name of names.filter(name => /^[\w-]+\.json$/.test(name))) {
+    const file = path.join(directory, "ai", name);
+    const report = JSON.parse(await readFile(file, "utf8"));
+    if (report.scanId === scan.id) await rm(file);
+  }
+  await rm(path.join(directory, scan.id + ".json"), { force: true });
 }

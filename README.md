@@ -76,3 +76,11 @@ Optional Search Console CSV/Google connection and its setup are documented in [d
 ### Manage saved websites
 
 Open **Saved websites** in the header or sidebar. Search all saved scans, open one, or choose **Delete scan** to move it to **Trash**. Restore it from Trash whenever needed. Each scan is managed separately, including repeated scans of one domain. Drafts, notes and research remain available after restoration; the live website is never changed. Trashing does not free disk/browser storage. Stop a running scan before deleting it. Local scans are saved on this computer; hosted scans remain in the current browser. See [Ponytail audit](docs/PONYTAIL-AUDIT.md) for the code review and remaining limits.
+
+## Public tools and performance reports
+
+Open `/public.html` for password-free PageSpeed and Lighthouse JSON tools. The private hosted dashboard remains owner-protected. For full audits without using the owner's server resources, download this project and run it locally; optional AI uses each person's own key. See [Public usage and free performance data](docs/PUBLIC-USAGE.md).
+
+Within a scan, open **Page speed**. Google keyless requests may be quota-limited; optionally use your own PageSpeed key or import JSON from Chrome DevTools Lighthouse. Real scores and timing metrics are labelled by URL, device, source and report date. Missing measurements are not treated as passing checks.
+
+Saved websites now confirms deletion. Trash supports **Delete permanently**, with a separate warning and typed DELETE confirmation. This removes workspace scan/research data and associated browser notes; exported backups, other devices and the live website are not erased.

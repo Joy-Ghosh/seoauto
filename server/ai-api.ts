@@ -37,7 +37,7 @@ export function createAiApi(
       throw new Error("Invalid JSON request.");
     }
   };
-  return async (
+  const handler = async (
     req: http.IncomingMessage,
     res: http.ServerResponse,
     url: URL,
@@ -112,7 +112,7 @@ export function createAiApi(
             throw new Error("Connect your NVIDIA key before running AI.");
           const input = validateInput(body);
           const scan = scans.get(input.scanId);
-          if (!scan) throw new Error("Scan not found. Select a saved scan.");
+          if (!scan || scan.deletedAt) throw new Error("Scan not found. Restore it from Trash or select a saved scan.");
           buildContext(scan, input, []);
           const competitors: Scan[] = [];
           for (const competitorUrl of input.competitorUrls) {
@@ -173,4 +173,5 @@ export function createAiApi(
     }
     return true;
   };
+  return Object.assign(handler, { isBusy: () => Boolean(active) });
 }

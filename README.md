@@ -1,86 +1,132 @@
-# Local SEO Workbench
+# SEO Workbench
 
-Version 0.2 also includes a protected, stateless hosted workspace for Vercel. Start with [HOSTED.md](HOSTED.md) for phase-one deployment, [SECURITY.md](SECURITY.md) for the security model, and [docs/PHASES.md](docs/PHASES.md) for the future MCP work. The instructions below describe the original localhost mode; hosted credentials use encrypted session cookies and hosted history stays in the browser.
+**Turn website findings into changes you can review, apply and verify.**
 
-A local, rule-based website crawler, SEO audit and reviewable repair plan. No paid APIs, accounts or AI service are required.
+Crawl a website, inspect the evidence behind each SEO issue, explore internal links, and build an exact repair plan. Add AI research or Google data when you need it. The core audit runs locally without an AI key.
 
-Optional **AI Studio** adds NVIDIA-powered research using your own API key. The crawler works without it.
+[**Try the free speed tools →**](https://seo-workbench-ten.vercel.app/public.html) · [Run the full workbench locally](#run-locally) · [Explore the project map](https://seo-workbench-ten.vercel.app/project-guide.html)
 
-## Run
+[![Validate SEO Workbench](https://github.com/Joy-Ghosh/seoauto/actions/workflows/checks.yml/badge.svg)](https://github.com/Joy-Ghosh/seoauto/actions/workflows/checks.yml)
 
-Requires Node.js 22.14 or newer.
+![SEO Workbench workflow illustration: scan, review, plan, apply changes in your CMS, then verify](docs/assets/workflow.svg)
 
-```powershell
-npm install
+## From a finding to a finished fix
+
+A page can return HTTP 200 and still send visitors to broken destinations. SEO Workbench shows the source page, the failed links, their anchor text and the scanned response evidence. Review the problem, save a change, publish it in your CMS, then re-scan to check the result.
+
+It is built for site owners, developers and SEO practitioners who want to understand **what is wrong, where it happens and what to change next**.
+
+1. **Scan** — read up to 200 pages with crawl progress, cancellation and robots.txt checks.
+2. **Review** — inspect findings, page metadata, an HTML skeleton and incoming/outgoing connections.
+3. **Plan** — save exact replacements, write your own drafts or request optional AI suggestions.
+4. **Apply and verify** — publish in your website editor, then compare a new scan with your baseline.
+
+## What you can do
+
+| Workflow | What you get |
+| --- | --- |
+| **Website audit** | Response errors, broken internal destinations, missing headings, title/description checks, duplicate metadata, missing image alt attributes, canonical and robots evidence. Filter by page, priority or problem type. |
+| **Page review** | The original page values, explanations, practical fix steps, review notes and a safe HTML skeleton showing where content and problems appear. |
+| **Internal linking** | Searchable donor/source and receiver/destination pages, observed anchors, incoming/outgoing connections, scanned click depth and text-based linking opportunities. |
+| **Technology detection** | Evidence-backed hints for WordPress, Shopify, Next.js and other technologies. Saved evidence is dated; hidden or unreachable technology stays unconfirmed. |
+| **AI Studio** | Nine NVIDIA-powered tools for keyword ideas, competitor comparisons, content planning, page improvements, priorities, briefs, links, schema drafts and site questions. Uses your own key. |
+| **Problem-specific drafts** | Generate suggestions for titles, H1s, descriptions and image alt text. Alt suggestions require your image description; the text model does not inspect image pixels. |
+| **Bulk title planning** | Filter pages by category or problem, select up to ten, generate suggestions, edit them, check duplicates and save only approved drafts. |
+| **Change verification** | Re-scan a page or compare scans. Check expected title/description/alt values and distinguish still-present findings from checks that lack enough coverage. |
+| **Page speed** | Mobile/desktop PageSpeed requests, optional personal Google key, Lighthouse JSON import, lab scores, timing metrics and failing-audit recommendations. |
+| **Search Console** | Import an English CSV, optionally connect Google with read-only access, or skip it. View actual supplied search-performance data separately from AI ideas. |
+| **Saved work** | Scan history, reviewable change plans, research reports, HTML/CSV/Markdown/JSON exports, scan backups, recoverable Trash and confirmed permanent deletion. |
+
+## Choose how to use it
+
+| Option | Best for | Access and processing |
+| --- | --- | --- |
+| [**Public tools**](https://seo-workbench-ten.vercel.app/public.html) | A quick speed check or an existing Lighthouse report | No workspace password. Google requests run directly from your browser. Imported reports stay in the tab unless exported. |
+| **Local workbench** | The complete crawl → review → plan → verify workflow | Runs on your computer at `127.0.0.1:4317`. No AI key needed for the audit. |
+| [**Hosted owner workspace**](https://seo-workbench-ten.vercel.app) | The project owner's private dashboard | Requires the owner password. History stays in the current browser; this is not a public multi-user SaaS. |
+
+The public tools do not use an app-owner PageSpeed key or run the hosted crawler. Google quotas and hosting limits still apply. For the full workflow without using the owner's crawler/AI compute, run the project locally and use your own optional provider keys. See [public usage and cost boundaries](docs/PUBLIC-USAGE.md).
+
+## Run locally
+
+Use **Node.js 22.14+ or 24.x**, below version 25, with npm. Node.js 24 is used by CI and the hosted project.
+
+```bash
+git clone https://github.com/Joy-Ghosh/seoauto.git
+cd seoauto
+npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:4317**. The app binds to your computer only. Try **Try the local sample** to crawl a deliberately imperfect local fixture. Enter a website to scan its response HTML. Crawling makes HTTP requests to the target website but does not edit it.
+Open **[http://127.0.0.1:4317](http://127.0.0.1:4317)**. Enter a website or choose **Explore a sample** to try the deliberately imperfect local fixture. The local server binds to your computer only.
 
-For a production frontend build: `npm run build`, then `npm start`. `PORT` can change the default 4317 port.
+For a production frontend build:
 
-## Included
+```bash
+npm run build
+npm start
+```
 
-- Robots-aware, same-origin crawl with a 10/40/100/200-page limit, cancellation and local history.
-- Title/description/H1/alt, duplicate metadata, canonical, noindex, short-content and fetched internal-error checks.
-- Page evidence drawer, filterable findings, scanned-page incoming/outgoing connections and click depth, and text-overlap internal-link candidates.
-- Manual title/description/alt drafts with current-versus-proposed review and JSON export.
-- HTML report (printable as PDF) and spreadsheet-safe CSV export.
-- WordPress companion plugin with explicit preview/apply, original-value checks and guarded restoration.
-- NVIDIA AI Studio: keyword ideas and intent clusters, competitor suggestions and comparisons, content plans and briefs, page improvements, SEO action plans, internal-link ideas, structured-data drafts and site questions.
+Set `PORT` if `4317` is already in use. For the private hosted adapter, owner credentials and deployment instructions, follow [HOSTED.md](HOSTED.md). Keep `.env.local` and the private access file out of Git.
 
-## NVIDIA AI Studio
+## Optional AI: your evidence, your key
 
-1. Scan your website or open a saved scan in Overview, then open **AI Studio**.
+Open **AI tools**, connect your NVIDIA Build key, choose a task and review the disclosure before running it. Focus on a single page for precise drafts, or supply up to two competitor URLs for a comparison grounded in crawled pages.
 
-   You can also choose any action under **Explore this website with AI** on the scan overview. The selected analysis keeps that website as its context. Open a page review and choose **Improve this page with AI** to preselect that exact page.
+- The core crawler and manual change plan work without AI.
+- The local server holds the key in memory until disconnect/restart. The hosted adapter uses an encrypted, HttpOnly credential cookie bound to the owner session.
+- Selected page evidence is sent to NVIDIA only when you run AI. Keys are not included in research messages, scan files or exports.
+- Provider availability, quota and charges belong to your NVIDIA account. A connection test uses a short completion; invalid report formatting can trigger one correction request.
+- AI keyword ideas and competitor suggestions are hypotheses. The app does not invent search volume, rankings, backlinks or measured demand. Supplied competitor pages give evidence for the sampled comparison.
 
-2. Paste your NVIDIA Build API key into the password field and click **Connect & test**. The key is held only in the local Node server's memory. It is not saved to localStorage, files, exported reports or source code, and the app never returns it through the status endpoint. The field is cleared after the connection attempt. Disconnect or restart the server to clear the connection.
-3. Choose a tool, add seed topics, market, language and business context, and optionally focus on a page.
-4. Check the disclosure for sending page evidence to NVIDIA, then run the analysis. Your key goes only to NVIDIA in the server's Authorization header; competitor crawling uses separate requests without it.
-5. Review the report, export Markdown, or explicitly add title/description suggestions to the local Repair plan. Nothing is automatically published.
+The default model is `nvidia/nemotron-3.5-lightning-30b-a3b`. A local Ollama integration is not included.
 
-The default text model is `nvidia/nemotron-3.5-lightning-30b-a3b`. You can enter another available NVIDIA text-chat model ID before connecting. Availability, quota and charges depend on your NVIDIA account. The connection test uses a short completion. See the [NVIDIA model page](https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b) and [chat-completions API documentation](https://docs.api.nvidia.com/nim/reference/meta-llama-3_1-8b-infer).
+## Speed metrics without a paid SEO subscription
 
-Research sends sampled metadata, headings, paragraph text, links, image URL/alt attributes, and findings for up to 20 successful own-site pages. It does not send screenshots or image pixels. For competitor comparisons, enter up to two URLs: each is crawled with robots.txt checks and a 5-page limit, then its successful page evidence is included. Without competitor URLs, the model can suggest possible domains from its knowledge; these remain explicitly unverified. Each report lists the pages used as evidence and their crawl dates.
+Open **Page speed** inside a scan, or use the [public tools](https://seo-workbench-ten.vercel.app/public.html).
 
-**AI is not a live keyword database or search engine.** Keyword intent, clustering, relevance and topic gaps are hypotheses. The app has no SERP, keyword volume, difficulty, CPC, ranking, backlink feed connected to AI research. Current competitor discovery requires independent validation; the app does not present generated domains as live search results. Structured-data drafts need factual review and manual validation before installation. AI alt text is not generated because image pixels were not inspected.
+**Google PageSpeed:** choose a URL and mobile/desktop strategy, then consent to sending that URL to Google. Keyless requests may hit quota limits. You can optionally use your own Google PageSpeed key, held only in the form's memory and cleared when a test starts.
 
-Reports are saved locally under `data/ai/` and the latest 20 for a scan appear in Saved research. Generated reports and scan content may contain business information: only export them when you intend to share it. The API key is never included. Each generation can be cancelled; aborting cannot retract content already sent to NVIDIA or guarantee that provider usage is not counted. One AI request runs at a time.
+**Lighthouse import:** in Chrome DevTools, open **Lighthouse**, analyze the page and export JSON. Import that file here to review the scores, FCP, LCP, TBT, CLS, Speed Index and available recommendations without an API key. You can also import/export this app's speed summaries.
 
-Research requests use JSON output constraints. If a model still returns an invalid report, the app makes at most one additional formatting-correction request, which also uses your provider allowance. Incomplete or invalid responses never become repair drafts.
+Lab scores vary between runs. They are separate from search rankings and real-user Core Web Vitals. Missing measurements are shown as missing. [Read the performance-data guide](docs/PUBLIC-USAGE.md#getting-speed-metrics-without-a-paid-api).
 
-If a broad report reaches the model's output limit, select a specific page under Page focus and ask for concise results in Additional direction. A focused live keyword report was verified with the default NVIDIA model. This version does not yet connect to a locally running Ollama model.
+## Publish changes with control
 
-## WordPress companion
+The audit does not publish changes automatically. Saved changes show the current value and your proposed replacement; apply the fix in your CMS, then use **Re-scan this page & verify**.
 
-Install the `wordpress/local-seo-repairs` folder as a plugin, or upload `local-seo-repairs.zip` from this app folder. Activate it, then go to **Tools → SEO repair plans**. Import the app's JSON plan. Review the values and explicitly confirm before applying. Stored backup batches can be restored while their applied values have not been changed by another editor.
+The optional [WordPress companion](wordpress/local-seo-repairs/local-seo-repairs.php) supports preview, explicit apply and guarded restoration for title overrides, supported descriptions and attachment-alt fields. The build creates the plugin ZIP for the hosted download. H1, body content, links, archives and descriptions controlled by another SEO plugin require manual editing. Shared attachment alt text affects every use of that image.
 
-This first plugin supports SEO-title overrides, adding missing descriptions, updating its own descriptions and media-attachment alt text. It refuses to overwrite descriptions owned by another SEO plugin. H1, internal links, body content, external images and archive URLs require manual editing. An attachment's alt text is shared across its usages. Clear page caches and verify the public HTML after applying or restoring. Plugin deactivation does not undo stored alt-text writes.
+WordPress syntax and guards are tested; real theme/cache/plugin behavior still requires **staging validation before live use**.
 
-The plugin is an initial implementation. PHP syntax was checked with a parser; runtime behavior and real WordPress/theme/cache integration still require staging validation. No live WordPress site was changed during development.
+## Your data and the product's limits
 
-## Honest boundaries
+- **Local:** scans and research are JSON files under `data/`; drafts and review notes use browser storage.
+- **Hosted:** scans and research use browser IndexedDB; drafts and notes use localStorage. There is no shared cloud history or cross-device sync. Export backups before clearing browser data.
+- **Deletion:** moving to Trash is reversible. Permanent deletion requires a separate named confirmation and typed `DELETE`. It removes workspace scan/research records and associated browser work. Other scans, exported backups, other devices and the live website have separate scopes.
+- **Coverage:** the audit reads response HTML. It does not execute the target site's JavaScript, check every external destination or prove that every website page was discovered. Sitemaps are not crawled.
+- **Evidence:** links and findings cover the scanned subset. An unscanned destination is unknown; absence from a small re-scan is not proof that a site-wide issue is fixed.
+- **Phase two:** a ChatGPT MCP connection and a full public multi-user service are planned, not shipped.
 
-This reads server HTML; it does not run target-page JavaScript, check external-link responses, measure search demand/rankings, or predict traffic. Sitemaps are not fetched, so it cannot prove a site-wide orphan-page inventory. Link suggestions come from words in existing paragraph/list text and require editorial review. Findings cover the scanned subset. A missing metric is not a zero score.
+See [SECURITY.md](SECURITY.md) for credential handling, network restrictions, imports and output protections.
 
-Scans are saved as JSON under `data/`. Drafts are stored in this browser's localStorage. There is no remote sync. AI runs explicitly send selected evidence to NVIDIA. Stop the local server to stop the app. The optional fonts request public Google Fonts; system fonts work when offline.
+## Built with
 
-## Verify
+React 19 · TypeScript · Vite · Node.js · htmlparser2 · Zod · IndexedDB · optional NVIDIA and Google APIs.
 
-`npm test` covers HTML evidence, robots precedence, verified broken links, URL normalization, local HTTP crawling, connection topology, PHP syntax, NVIDIA request boundaries, report persistence, cancellation and model-output validation. NVIDIA transport is simulated in tests; a real provider response needs your key. `npm run build` type-checks the app and produces the frontend bundle.
+The application has two frontend entries (`index.html` and `public.html`), a localhost Node server and a protected stateless hosted adapter. [Explore the interactive project map](https://seo-workbench-ten.vercel.app/project-guide.html).
 
+## Contribute and follow the project
 
-Optional Search Console CSV/Google connection and its setup are documented in [docs/SEARCH-CONSOLE.md](docs/SEARCH-CONSOLE.md). Website audit also offers baseline/new-scan verification. New scans retain passive technology hints and a safe HTML skeleton; older scans use a labeled fallback. Per-problem AI can draft H1/title/description/image-alt suggestions, with explicit sharing consent and user-provided image context. See [docs/NEXT-IMPROVEMENTS.md](docs/NEXT-IMPROVEMENTS.md) for the three priorities, free API/repository research and implementation limits.
+Found a confusing flow or a reproducible bug? [Open an issue](https://github.com/Joy-Ghosh/seoauto/issues) with the steps, expected behavior, actual result and sanitized evidence. If this workflow is useful to you, star the repository so you can find it again.
 
-### Manage saved websites
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) for setup, module ownership, tests and the ECC/Superpowers development workflow. Never include API keys, passwords or private scan exports in an issue.
 
-Open **Saved websites** in the header or sidebar. Search all saved scans, open one, or choose **Delete scan** to move it to **Trash**. Restore it from Trash whenever needed. Each scan is managed separately, including repeated scans of one domain. Drafts, notes and research remain available after restoration; the live website is never changed. Trashing does not free disk/browser storage. Stop a running scan before deleting it. Local scans are saved on this computer; hosted scans remain in the current browser. See [Ponytail audit](docs/PONYTAIL-AUDIT.md) for the code review and remaining limits.
-
-## Public tools and performance reports
-
-Open `/public.html` for password-free PageSpeed and Lighthouse JSON tools. The private hosted dashboard remains owner-protected. For full audits without using the owner's server resources, download this project and run it locally; optional AI uses each person's own key. See [Public usage and free performance data](docs/PUBLIC-USAGE.md).
-
-Within a scan, open **Page speed**. Google keyless requests may be quota-limited; optionally use your own PageSpeed key or import JSON from Chrome DevTools Lighthouse. Real scores and timing metrics are labelled by URL, device, source and report date. Missing measurements are not treated as passing checks.
-
-Saved websites now confirms deletion. Trash supports **Delete permanently**, with a separate warning and typed DELETE confirmation. This removes workspace scan/research data and associated browser notes; exported backups, other devices and the live website are not erased.
+| Documentation | Purpose |
+| --- | --- |
+| [Hosted setup](HOSTED.md) | Owner access, Vercel and the hosted adapter |
+| [Public usage](docs/PUBLIC-USAGE.md) | Password-free tools, local use, cost and data boundaries |
+| [Search Console setup](docs/SEARCH-CONSOLE.md) | CSV import and optional Google OAuth |
+| [Security model](SECURITY.md) | Credentials, network guards and data handling |
+| [Validation record](VALIDATION.md) | Executed checks and remaining test limitations |
+| [Roadmap and phases](docs/PHASES.md) | Current scope and future MCP work |

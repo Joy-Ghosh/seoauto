@@ -44,7 +44,7 @@ The default text model is `nvidia/nemotron-3.5-lightning-30b-a3b`. You can enter
 
 Research sends sampled metadata, headings, paragraph text, links, image URL/alt attributes, and findings for up to 20 successful own-site pages. It does not send screenshots or image pixels. For competitor comparisons, enter up to two URLs: each is crawled with robots.txt checks and a 5-page limit, then its successful page evidence is included. Without competitor URLs, the model can suggest possible domains from its knowledge; these remain explicitly unverified. Each report lists the pages used as evidence and their crawl dates.
 
-**AI is not a live keyword database or search engine.** Keyword intent, clustering, relevance and topic gaps are hypotheses. The app has no SERP, keyword volume, difficulty, CPC, ranking, backlink or Search Console feed. Current competitor discovery requires independent validation; the app does not present generated domains as live search results. Structured-data drafts need factual review and manual validation before installation. AI alt text is not generated because image pixels were not inspected.
+**AI is not a live keyword database or search engine.** Keyword intent, clustering, relevance and topic gaps are hypotheses. The app has no SERP, keyword volume, difficulty, CPC, ranking, backlink feed connected to AI research. Current competitor discovery requires independent validation; the app does not present generated domains as live search results. Structured-data drafts need factual review and manual validation before installation. AI alt text is not generated because image pixels were not inspected.
 
 Reports are saved locally under `data/ai/` and the latest 20 for a scan appear in Saved research. Generated reports and scan content may contain business information: only export them when you intend to share it. The API key is never included. Each generation can be cancelled; aborting cannot retract content already sent to NVIDIA or guarantee that provider usage is not counted. One AI request runs at a time.
 
@@ -69,3 +69,6 @@ Scans are saved as JSON under `data/`. Drafts are stored in this browser's local
 ## Verify
 
 `npm test` covers HTML evidence, robots precedence, verified broken links, URL normalization, local HTTP crawling, connection topology, PHP syntax, NVIDIA request boundaries, report persistence, cancellation and model-output validation. NVIDIA transport is simulated in tests; a real provider response needs your key. `npm run build` type-checks the app and produces the frontend bundle.
+
+
+Optional Search Console CSV/Google connection and its setup are documented in [docs/SEARCH-CONSOLE.md](docs/SEARCH-CONSOLE.md). Website audit also offers baseline/new-scan verification. New scans retain passive technology hints and a safe HTML skeleton; older scans use a labeled fallback. Per-problem AI can draft H1/title/description/image-alt suggestions, with explicit sharing consent and user-provided image context. See [docs/NEXT-IMPROVEMENTS.md](docs/NEXT-IMPROVEMENTS.md) for the three priorities, free API/repository research and implementation limits.

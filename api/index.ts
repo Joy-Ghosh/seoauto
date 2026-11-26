@@ -5,6 +5,8 @@ import { crawl } from "../server/crawler.js";
 import { analyze, parsePage } from "../server/audit.js";
 import { scanSchema } from "../src/scan-schema.js";
 import { DEFAULT_MODEL } from "../src/ai-types.js";
+import { createSearchConsoleApi } from "../server/search-console.js";
+import { inspectTechnology } from "../server/inspect-technology.js";
 import type { Scan } from "../src/types.js";
 import {
   authReady,
@@ -128,6 +130,7 @@ export function createHostedHandler(
   nvidiaFactory = () => new NvidiaClient(),
   websiteFetch: typeof fetch = publicFetch,
 ) {
+  const searchConsole = createSearchConsoleApi(config);
   const json = (body: unknown, status = 200, cookies: string[] = []) => {
     const headers = new Headers({
       ...securityHeaders(),
@@ -142,6 +145,7 @@ export function createHostedHandler(
         "/api/" +
         (url.searchParams.get("route") ||
           url.pathname.replace(/^\/api\/?/, ""));
+    if (route === "/api/search-console/callback" && request.method === "GET") return searchConsole(request, route);
     if (!sameOrigin(request))
       return json({ error: "Cross-origin requests are not accepted." }, 403);
     const owner = session(request, config);
@@ -181,14 +185,20 @@ export function createHostedHandler(
         return json({ ok: true }, 200, [
           setCookie("owner", seal(next, config, "owner"), config),
           setCookie("ai", "", config, 0),
+          setCookie("gsc", "", config, 0),
+          setCookie("gsc-state", "", config, 0),
         ]);
       }
       if (!owner)
         return json({ error: "Sign in to your private workspace." }, 401);
+      if (route.startsWith("/api/search-console/")) return searchConsole(request, route, owner.id);
+      if (route === "/api/technology" && request.method === "POST") { const body = await readJson(request, 4000); return json(await inspectTechnology(publicUrl(body?.url), request.signal, websiteFetch)); }
       if (route === "/api/logout" && request.method === "POST")
         return json({ ok: true }, 200, [
           setCookie("owner", "", config, 0),
           setCookie("ai", "", config, 0),
+          setCookie("gsc", "", config, 0),
+          setCookie("gsc-state", "", config, 0),
         ]);
       const credentials = unseal<{
         key: string;

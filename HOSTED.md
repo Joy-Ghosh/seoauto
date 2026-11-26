@@ -59,7 +59,7 @@ The default model is `nvidia/nemotron-3.5-lightning-30b-a3b`; other available NV
 
 Research uses sampled page text and findings, constrained JSON, task-specific result fields, provenance and a bounded formatting-correction request. An additional correction request uses the provider allowance too. Default Nemotron research has a larger output budget and disables optional reasoning to leave room for the actual report. A focused page and a concise direction can still be useful for large sites.
 
-Keyword ideas, intent and topic clusters are inferences. There is no live keyword-volume, difficulty, CPC, SERP, backlink or Search Console feed. Possible competitor domains are unverified model suggestions. Supplying competitor URLs enables a comparison of up to three fetched pages per competitor (two competitors maximum). No search ranking, traffic uplift or rich-result eligibility is guaranteed.
+Keyword ideas, intent and topic clusters are inferences. There is no live keyword-volume, difficulty, CPC, SERP, backlink feed connected to AI research. Possible competitor domains are unverified model suggestions. Supplying competitor URLs enables a comparison of up to three fetched pages per competitor (two competitors maximum). No search ranking, traffic uplift or rich-result eligibility is guaranteed.
 
 The crawler reads response HTML, not target-page JavaScript. It does not fetch sitemaps or prove site-wide orphan-page inventory. Hosted scans stop after four minutes or the captured-evidence budget, preserving partial results. Large pages are explicitly sampled at up to 1,000 links, 100 images and 100 paragraph blocks. Individual responses have size limits.
 
@@ -68,3 +68,6 @@ The crawler reads response HTML, not target-page JavaScript. It does not fetch s
 Download the companion ZIP from Repair plan. Install it manually on a staging WordPress site first, then import and preview the exported JSON plan under Tools → SEO repair plans. Original-value and permission checks guard writes; backups support guarded restoration. Titles, descriptions and shared media alt text are supported. H1s, body content, links, archives and external images require manual editing. Live WordPress/theme/cache integration has not been validated.
 
 See [SECURITY.md](SECURITY.md) for the access and network model, and [docs/PHASES.md](docs/PHASES.md) for the deferred ChatGPT MCP work.
+
+
+Optional Search Console CSV/Google connection and its setup are documented in [docs/SEARCH-CONSOLE.md](docs/SEARCH-CONSOLE.md). Website audit also offers baseline/new-scan verification. New scans retain passive technology hints and a safe HTML skeleton; older scans use a labeled fallback. Per-problem AI can draft H1/title/description/image-alt suggestions, with explicit sharing consent and user-provided image context. See [docs/NEXT-IMPROVEMENTS.md](docs/NEXT-IMPROVEMENTS.md) for the three priorities, free API/repository research and implementation limits.

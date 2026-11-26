@@ -14,6 +14,8 @@ const url = z
   });
 const str = (size = 2000) => z.string().max(size);
 export const pageSchema = z.object({
+  technologies: z.array(z.object({ name: str(100), confidence: z.enum(["strong", "possible"]), evidence: str(500) })).max(30).optional(),
+  outline: z.array(z.object({ kind: z.enum(["heading", "paragraph", "image"]), text: str(2000), level: z.number().int().min(1).max(6).optional(), src: url.optional(), region: str(30) })).max(200).optional(),
   url,
   finalUrl: url,
   status: z.number().int().min(0).max(599),

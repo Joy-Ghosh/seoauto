@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { crawl } from "./crawler.js";
 import { normalizeUrl } from "./audit.js";
 import { createAiApi } from "./ai-api.js";
+import { createSearchConsoleApi } from "./search-console.js";
+import { inspectTechnology } from "./inspect-technology.js";
 import type { Scan } from "../src/types.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const data = path.join(root, "data");
@@ -46,6 +48,7 @@ const esc = (s: string) =>
   );
 const port = Number(process.env.PORT) || 4317;
 const aiApi = createAiApi(data, scans);
+const searchConsole = createSearchConsoleApi({ secret: process.env.APP_SECRET || randomUUID() + randomUUID(), passwordHash: "", secure: false });
 const server = http.createServer(async (req, res) => {
   try {
     if (
@@ -70,6 +73,14 @@ const server = http.createServer(async (req, res) => {
         send(res, 403, { error: "Cross-origin requests are not accepted." });
         return;
       }
+      if (u.pathname.startsWith("/api/search-console/")) {
+        let body = ""; for await (const chunk of req) { body += chunk; if (body.length > 10000) { send(res, 413, { error: "Request too large." }); return; } }
+        const headers = new Headers(); for (const [key, value] of Object.entries(req.headers)) if (value) headers.set(key, Array.isArray(value) ? value.join(",") : value);
+        const response = await searchConsole(new Request(`http://${req.headers.host}${req.url}`, { method: req.method, headers, ...(body ? { body } : {}) }), u.pathname, "localhost");
+        const outgoing: Record<string, string | string[]> = {}; for (const [key, value] of response.headers) if (key !== "set-cookie") outgoing[key] = value;
+        if (response.headers.getSetCookie().length) outgoing["set-cookie"] = response.headers.getSetCookie(); res.writeHead(response.status, outgoing); res.end(Buffer.from(await response.arrayBuffer())); return;
+      }
+      if (u.pathname === "/api/technology" && req.method === "POST") { let body = ""; for await (const chunk of req) { body += chunk; if (body.length > 4000) { send(res, 413, { error: "Request too large." }); return; } } const input = JSON.parse(body); send(res, 200, await inspectTechnology(String(input.url || ""), AbortSignal.timeout(30000))); return; }
       if (await aiApi(req, res, u)) return;
       if (req.method === "GET" && u.pathname === "/api/scans") {
         send(

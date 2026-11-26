@@ -1,5 +1,7 @@
 export type Severity = "high" | "medium" | "low" | "info";
 export interface Page {
+  technologies?: { name: string; confidence: "strong" | "possible"; evidence: string }[];
+  outline?: { kind: "heading" | "paragraph" | "image"; text: string; level?: number; src?: string; region: string }[];
   url: string;
   finalUrl: string;
   status: number;

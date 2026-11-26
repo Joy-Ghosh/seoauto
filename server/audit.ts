@@ -1,6 +1,7 @@
 import { Parser } from "htmlparser2";
 import { createHash } from "node:crypto";
 import type { Page, Issue, Suggestion } from "../src/types.js";
+import { detectTechnologies } from "./technologies.js";
 export function normalizeUrl(input: string, base?: string) {
   const u = new URL(input, base);
   if (!["http:", "https:"].includes(u.protocol) || u.username || u.password)
@@ -30,6 +31,9 @@ export function parsePage(html: string, url: string): Page {
     redirects: 0,
   };
   const stack: string[] = [];
+  page.technologies = detectTechnologies(html);
+  page.outline = [];
+  const captures: { tag: string; block: NonNullable<Page["outline"]>[number] }[] = [];
   let base = url,
     text = "",
     title = "",
@@ -44,6 +48,12 @@ export function parsePage(html: string, url: string): Page {
     {
       onopentag(name, a) {
         stack.push(name);
+        if (!ignored() && !stack.includes("head") && page.outline!.length < 200 && (/^h[1-6]$/.test(name) || name === "p" || name === "img")) {
+          const block: NonNullable<Page["outline"]>[number] = { kind: name === "img" ? "image" : name === "p" ? "paragraph" : "heading", text: name === "img" ? a.alt || "" : "", region: stack.find(tag => ["header", "nav", "footer", "main", "aside"].includes(tag)) || "body", ...(/^h[1-6]$/.test(name) ? { level: Number(name[1]) } : {}) };
+          if (name === "img") { try { block.src = normalizeUrl(a.src || a["data-src"], base); } catch {} }
+          page.outline!.push(block);
+          if (name !== "img") captures.push({ tag: name, block });
+        }
         if (name === "base" && a.href)
           try {
             base = normalizeUrl(a.href, url);
@@ -84,6 +94,7 @@ export function parsePage(html: string, url: string): Page {
       },
       ontext(t) {
         if (ignored()) return;
+        for (const capture of captures) capture.block.text = (capture.block.text + t).slice(0, 2000);
         if (stack.includes("title")) title += t;
         if (stack.includes("h1")) heading += t;
         if (stack.includes("p") || stack.includes("li")) paragraph += t;
@@ -91,6 +102,7 @@ export function parsePage(html: string, url: string): Page {
         if (inContent() && !stack.includes("head")) text += " " + t;
       },
       onclosetag(name) {
+        for (let n = captures.length - 1; n >= 0; n--) if (captures[n].tag === name) { captures[n].block.text = clean(captures[n].block.text); captures.splice(n, 1); }
         if (name === "title") page.title = clean(title);
         if (name === "h1") page.h1.push(clean(heading));
         if (["p", "li"].includes(name) && clean(paragraph).length > 35)

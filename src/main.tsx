@@ -27,7 +27,6 @@ import {
   X,
 } from "lucide-react";
 import type { Issue, Page, Repair, Scan } from "./types";
-import PageEvidence from "./PageEvidence";
 import { connections } from "./topology";
 import { pollScan } from "./poll-scan";
 import DeferredTool from "./DeferredTool";
@@ -39,8 +38,13 @@ import { exportScan, exportCsv } from "./exports";
 import "./workspace.css";
 const AiStudio = lazy(() => import("./AiStudio"));
 const ScanBackup = lazy(() => import("./ScanBackup"));
-type View = "overview" | "issues" | "pages" | "links" | "repairs" | "ai";
-const views: View[] = ["overview", "issues", "pages", "links", "repairs", "ai"];
+const SearchConsolePanel = lazy(() => import("./SearchConsolePanel"));
+const VerificationPanel = lazy(() => import("./VerificationPanel"));
+const BatchTitles = lazy(() => import("./BatchTitles"));
+const PageEvidence = lazy(() => import("./PageEvidence"));
+const TechnologyPanel = lazy(() => import("./TechnologyPanel"));
+type View = "overview" | "issues" | "pages" | "links" | "repairs" | "ai" | "search" | "verify" | "titles";
+const views: View[] = ["overview", "issues", "pages", "links", "repairs", "ai", "search", "verify", "titles"];
 type History = {
   id: string;
   url: string;
@@ -347,6 +351,18 @@ function App() {
     setRepairs((prev) => [...prev.filter((r) => r.id !== repair.id), repair]);
     setToast("Saved to your local repair plan.");
   };
+  const recheckPage = async (target: string) => {
+    if (!scan || running || busy) return;
+    setBusy(true); setError("");
+    const baseline = scan.id;
+    try {
+      const result = await api<{ id: string }>("/api/scans", { url: target, limit: 1 });
+      try { localStorage.setItem("seo:verify-request:" + result.id, JSON.stringify({ baseline, url: target })); } catch { setToast("Re-scan started. Choose the baseline manually in Verify changes if browser storage is full."); }
+      ++selection.current;
+      setDetail(null); setDetailTrail([]); setComposerOpen(false); setScan(await api<Scan>("/api/scans/" + result.id)); choose("verify"); refreshHistory();
+    } catch (error) { setError((error as Error).message); }
+    finally { setBusy(false); }
+  };
   const exportPlan = () => {
     if (!scan) return;
     download("seo-repair-plan.json", {
@@ -402,10 +418,10 @@ function App() {
             <button
               key={n.id}
               className={
-                (view === n.id || (["pages", "links"].includes(view) && n.id === "issues") ? "nav-item active" : "nav-item")
+                (view === n.id || (["pages", "links", "search", "verify", "titles"].includes(view) && n.id === "issues") ? "nav-item active" : "nav-item")
               }
               onClick={() => choose(n.id)}
-              aria-current={view === n.id || (["pages", "links"].includes(view) && n.id === "issues") ? "page" : undefined}
+              aria-current={view === n.id || (["pages", "links", "search", "verify", "titles"].includes(view) && n.id === "issues") ? "page" : undefined}
             >
               <n.icon size={18} />
               <span className="desktop-nav-label">{n.label}</span>
@@ -517,7 +533,7 @@ function App() {
                         ? "Internal links"
                         : view === "ai"
                           ? "AI tools for this website"
-                          : "Saved changes"}
+                          : view === "search" ? "Search performance" : view === "verify" ? "Change verification" : view === "titles" ? "Title suggestions by category" : "Saved changes"}
               </h1>
               <p>
                 {view === "overview"
@@ -532,7 +548,7 @@ function App() {
                         ? "Candidates from shared words in existing page content. Always review the placement."
                         : view === "ai"
                           ? "Use your NVIDIA key to turn page evidence into keyword ideas, content plans and reviewable improvements."
-                          : "Review your saved drafts, then export them when you’re ready."}
+                          : view === "search" ? "Optional Search Console data: import a CSV, connect Google, or skip it." : view === "verify" ? "Compare an older baseline with this scan and check what actually changed." : view === "titles" ? "Select pages, generate evidence-based title drafts, and save the suggestions you approve." : "Review your saved drafts, then export them when you’re ready."}
               </p>
             </div>
             {scan && scan.status !== "running" && (
@@ -548,7 +564,7 @@ function App() {
               </a>
             )}
           </div>
-          {(["issues", "pages", "links"].includes(view)) && (
+          {(["issues", "pages", "links", "search", "verify", "titles"].includes(view)) && (
             <div className="page-segments" role="group" aria-label="Page views">
               <button aria-pressed={view === "issues"} onClick={() => choose("issues")}>Issues to fix</button>
               <button
@@ -563,6 +579,9 @@ function App() {
               >
                 Connections & links
               </button>
+              <button aria-pressed={view === "search"} onClick={() => choose("search")}>Search Console</button>
+              <button aria-pressed={view === "verify"} onClick={() => choose("verify")}>Verify changes</button>
+              <button aria-pressed={view === "titles"} onClick={() => choose("titles")}>Generate titles</button>
             </div>
           )}
           {error && scan && !composerOpen && (
@@ -625,7 +644,7 @@ function App() {
                     onChange={(e) => setLimit(Number(e.target.value))}
                     disabled={running}
                   >
-                    {[10, 40, 100, 200].map((n) => (
+                    {[1, 10, 40, 100, 200].map((n) => (
                       <option key={n}>{n}</option>
                     ))}
                   </select>
@@ -786,6 +805,7 @@ function App() {
               )}
               {view === "overview" && (
                 <>
+                  <div className="measurement-actions"><button className="button secondary" onClick={() => choose("search")}>Add Search Console data (optional)</button><button className="button secondary" onClick={() => choose("verify")}>Verify published changes</button></div>
                   <section className="workflow-path" aria-label="Your website workflow">
                     <button onClick={() => choose("issues")}><span>1</span><div><strong>Review the audit</strong><small>{affected} pages need review</small></div><ArrowRight size={18} /></button>
                     <button onClick={() => openAi("priorities")} disabled={running || !pages.length}><span>2</span><div><strong>Choose an AI tool</strong><small>Ideas, comparisons and drafts</small></div><ArrowRight size={18} /></button>
@@ -1267,11 +1287,11 @@ function App() {
                       <article className="link-candidate" key={i}>
                         <div className="link-route">
                           <span>
-                            FROM <strong>{short(s.source)}</strong>
+                            DONOR <strong>{short(s.source)}</strong>
                           </span>
                           <ArrowRight size={16} />
                           <span>
-                            TO <strong>{short(s.target)}</strong>
+                            RECEIVER <strong>{short(s.target)}</strong>
                           </span>
                         </div>
                         <p>{s.context}</p>
@@ -1279,7 +1299,7 @@ function App() {
                           <span className="anchor-label">Candidate anchor</span>
                           <strong className="anchor-text">{s.anchor}</strong>
                           <span className="overlap">
-                            Shared: {s.overlap.join(", ")}
+                            Relevance keywords: {s.overlap.join(", ")}
                           </span>
                         </div>
                       </article>
@@ -1290,6 +1310,9 @@ function App() {
                   </section>
                 </>
               )}
+              {view === "search" && <DeferredTool label="Search Console"><SearchConsolePanel key={scan.id} scan={scan} inspect={setDetail} /></DeferredTool>}
+              {view === "verify" && <DeferredTool label="Change verification"><VerificationPanel key={scan.id} scan={scan} inspect={setDetail} /></DeferredTool>}
+              {view === "titles" && <DeferredTool label="Title suggestions"><BatchTitles key={scan.id} scan={scan} repairs={repairs} save={addRepair} setup={() => openAi("optimize")} plan={() => choose("repairs")} /></DeferredTool>}
               {view === "repairs" && (
                 <section className="panel">
                   <div className="section-heading">
@@ -1337,6 +1360,8 @@ function App() {
                           <p>{r.value}</p>
                         </div>
                       </div>
+                      <p className="evidence-hint">Apply this exact value in your page/CMS editor. For supported WordPress fields, export the plan and use the companion preview/apply flow. This console does not publish automatically.</p>
+                      <button className="button secondary" disabled={running || busy} onClick={() => void recheckPage(r.url)}>Re-scan this page & verify</button>
                     </article>
                   ))}
                   {!repairs.length && (
@@ -1418,7 +1443,7 @@ function App() {
           save={addRepair}
           close={() => { setDetail(null); setDetailTrail([]); }}
           analyze={() => openAi("optimize", detail.url)}
-          rescan={() => { setUrl(detail.url); setLimit(10); setDetail(null); setDetailTrail([]); newScan(); }}
+          rescan={() => void recheckPage(detail.url)}
           viewPlan={() => {
             setDetail(null);
             choose("repairs");
@@ -1649,12 +1674,13 @@ function PageDrawer({
           <span>{page.wordCount} words</span>
           <span>{scan.issues.filter(issue => issue.url === page.url).length} findings</span>
         </div>
-        <button className="button secondary" onClick={rescan}><Search size={16} />Prepare re-scan of this page</button>
-        <PageEvidence page={page} scan={scan} initialIssueId={initialIssueId} inspect={inspect} draft={(next) => {
+        <button className="button secondary" onClick={rescan}><Search size={16} />Re-scan this page & verify</button>
+        <DeferredTool label="Technology signals"><TechnologyPanel page={page} /></DeferredTool>
+        <DeferredTool label="Page evidence"><PageEvidence page={page} scan={scan} initialIssueId={initialIssueId} inspect={inspect} save={save} setup={analyze} draft={(next) => {
           setField(next);
           if (next === "alt_text") setImage(Math.max(0, page.images.findIndex(image => image.alt === null)));
           requestAnimationFrame(() => { const editor = document.getElementById("page-draft-value"); editor?.scrollIntoView({ block: "center" }); editor?.focus({ preventScroll: true }); });
-        }} />
+        }} /></DeferredTool>
         <details className="metadata-details"><summary>Page metadata & response evidence</summary>
         <h3>What the page serves</h3>
         <dl className="page-data">

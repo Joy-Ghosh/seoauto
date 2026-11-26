@@ -465,6 +465,7 @@ export default function AiStudio({
           <summary>More AI tools · content, links, schema and questions</summary>
           <div className="extra-tool-list" role="group" aria-label="More AI tasks">{AI_TOOLS.filter(tool => !["priorities", "keywords", "competitors", "optimize"].includes(tool.id)).map(tool => <button type="button" className="button secondary" key={tool.id} aria-pressed={task === tool.id} disabled={!!busy} onClick={() => chooseTool(tool.id)}>{tool.name}</button>)}</div>
         </details>
+        {task === "competitors" && <div className="competitor-workflow"><h3>Compare real competitors, then plan the gaps</h3><ol><li>Choose a seed query and target audience/market. Check the actual search results for pages serving the same intent; a large brand in a different market may be a poor comparison.</li><li>Enter up to two public competitor URLs below. Prefer a relevant service, category or article page. The app reads a bounded sample, not the competitor’s whole site.</li><li>Generate an evidence-based comparison: observed topic/intent gaps, weak pages, recommended own-site URLs, and the next change to test.</li><li>Review the sources, choose a draft/content action, publish it in your editor, then re-scan. Use Search Console to check performance over time.</li></ol><p className="evidence-hint">{competitors.trim() ? "Competitor URLs supplied: the report will use successfully fetched evidence and explain coverage limits." : "No competitor URLs yet: generation can suggest possible competitors, but those suggestions are unverified model ideas, not live search discoveries."}</p>{seeds.trim() && <a href={"https://www.google.com/search?q=" + encodeURIComponent(seeds)} target="_blank" rel="noreferrer">Search the web to validate this query’s competitors</a>}</div>}
         {!scan ? (
           <p className="notice">
             Scan a website or open a saved scan from Overview to give AI
@@ -479,8 +480,8 @@ export default function AiStudio({
             }}
           >
             <div className="selected-outcome"><Check size={18} /><div><strong>{AI_TOOLS.find(tool => tool.id === task)?.name}</strong><p>{task === "brief" ? "Add a topic below to create your brief." : task === "ask" ? "Enter your question below." : task === "optimize" ? "Choose the page you want to improve." : "Ready to use this scan. Extra instructions are optional."}</p></div></div>
-            <details className="research-context task-options" open={["brief", "ask", "optimize"].includes(task)}>
-              <summary>{["brief", "ask", "optimize"].includes(task) ? "Task details" : "Customize this analysis (optional)"}</summary>
+            <details className="research-context task-options" open={["brief", "ask", "optimize", "competitors"].includes(task)}>
+              <summary>{["brief", "ask", "optimize", "competitors"].includes(task) ? "Task details" : "Customize this analysis (optional)"}</summary>
             <div className="ai-fields">
               <label className="ai-wide">
                 {task === "brief"

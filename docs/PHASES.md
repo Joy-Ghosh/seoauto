@@ -8,6 +8,8 @@
 - Task-specific output restrictions, constrained JSON, source-page provenance and reviewable title/description drafts.
 - Hosted owner access, session-isolated credentials, public-network-only crawling and resource limits.
 - Browser-local history, scan backup/import, HTML/CSV/Markdown exports and a downloadable WordPress companion.
+- Optional Search Console CSV import and read-only Google OAuth/API support (owner client configuration required for Google sign-in).
+- Baseline/new-scan evidence comparison, expected draft checks, passive technology hints, per-problem AI drafts and a response-HTML skeleton view.
 - Public source in the owner-provided `Joy-Ghosh/seoauto` repository, connected to the deployed owner-authenticated Vercel workspace. Local scans and credentials are excluded from publication.
 
 ## Phase two: ChatGPT MCP connection — not implemented yet
@@ -18,4 +20,4 @@
 4. Keep publishing separate from discovery. Any eventual write tool needs explicit review/approval, ownership checks, original-value conflict detection and recovery records.
 5. Verify the ChatGPT connection and tool flows end to end before making them available beyond the owner.
 
-No MCP endpoint, OAuth registration, public user signup or automatic website publishing is included in phase one.
+No MCP endpoint or MCP OAuth registration, public user signup or automatic website publishing is included in phase one. Search Console's optional Google OAuth client is a separate integration.

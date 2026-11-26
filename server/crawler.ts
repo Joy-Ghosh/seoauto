@@ -1,5 +1,6 @@
 import type { Scan, Page } from "../src/types.js";
 import { normalizeUrl, parsePage, analyze } from "./audit.js";
+import { detectTechnologies } from "./technologies.js";
 import { boundedText } from "./public-network.js";
 export function robotsAllows(text: string, url: string) {
   const groups: {
@@ -67,6 +68,7 @@ export async function fetchDocument(
     if (response.status >= 400)
       return {
         html: "",
+        technologies: detectTechnologies("", response.headers),
         status: response.status,
         url: response.url,
         ms: Date.now() - start,
@@ -92,8 +94,10 @@ export async function fetchDocument(
     } finally {
       await reader.cancel().catch(() => {});
     }
+  const html = Buffer.concat(chunks).toString("utf8");
   return {
-    html: Buffer.concat(chunks).toString("utf8"),
+    html,
+    technologies: detectTechnologies(html, response.headers),
     status: response.status,
     url: response.url,
     ms: Date.now() - start,
@@ -144,6 +148,7 @@ export async function crawl(
         page = parsePage(doc.html, url);
         Object.assign(page, {
           status: doc.status,
+          technologies: doc.technologies || page.technologies,
           finalUrl: normalizeUrl(doc.url),
           ms: doc.ms,
           robots: (page.robots + " " + doc.robots).trim(),

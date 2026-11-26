@@ -2,18 +2,25 @@ import React, { useMemo, useState } from "react";
 import { ArrowDownToLine, ArrowUpRight, FileSearch, GitBranch } from "lucide-react";
 import type { Issue, Page, Repair, Scan } from "./types";
 import { editableField, fixSteps, linkStatus, pageLinks } from "./page-evidence";
+import ProblemAssistant from "./ProblemAssistant";
+import PageSkeleton from "./PageSkeleton";
+import LinkOpportunities from "./LinkOpportunities";
 
 type Review = { state: "open" | "planned" | "recheck" | "intentional"; note: string };
 const labels = { open: "Open", planned: "Fix planned", recheck: "Changed · needs re-scan", intentional: "Reviewed intentionally" };
 const path = (url: string) => { const value = new URL(url); return value.pathname + value.search; };
 
-export default function PageEvidence({ page, scan, initialIssueId, inspect, draft }: {
+export default function PageEvidence({ page, scan, initialIssueId, inspect, draft, save, setup }: {
   page: Page; scan: Scan; initialIssueId?: string;
   inspect: (page: Page) => void;
   draft: (field: Repair["field"]) => void;
+  save: (repair: Repair) => void;
+  setup: () => void;
 }) {
   const issues = scan.issues.filter(issue => issue.url === page.url);
-  const [tab, setTab] = useState<"issues" | "links">("issues");
+  const [tab, setTab] = useState<"issues" | "links" | "skeleton">("issues");
+  const [activeIssue, setActiveIssue] = useState(initialIssueId);
+  const [aiIssue, setAiIssue] = useState<Issue>();
   const [direction, setDirection] = useState<"outgoing" | "incoming">("outgoing");
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState("all");
@@ -64,13 +71,15 @@ export default function PageEvidence({ page, scan, initialIssueId, inspect, draf
     <div className="evidence-switch" role="group" aria-label="Page review views">
       <button aria-pressed={tab === "issues"} onClick={() => setTab("issues")}><FileSearch size={16} />Problems ({issues.length})</button>
       <button aria-pressed={tab === "links"} onClick={() => setTab("links")}><GitBranch size={16} />Link structure</button>
+      <button aria-pressed={tab === "skeleton"} onClick={() => setTab("skeleton")}>Page skeleton</button>
     </div>
-    {tab === "issues" ? <>
+    {tab === "skeleton" ? <PageSkeleton page={page} issues={issues} select={issue => { setActiveIssue(issue.id); setTab("issues"); }} /> : tab === "issues" ? <>
       <div className="section-heading"><h3>Problems on this page</h3><button className="text-button" onClick={exportActions}><ArrowDownToLine size={15} />Export action list</button></div>
       <p className="evidence-hint">Each finding includes evidence and a way to address it. Review states are saved in this browser; only a new scan can verify a live fix.</p>
       {storageError && <p className="error" role="alert">{storageError}</p>}
       {!issues.length && <p className="notice">No findings were recorded for this page in this scan. Open Link structure to inspect its connections.</p>}
-      {issues.map(issue => <details className="issue-review" key={issue.id} open={initialIssueId === issue.id || issues.length === 1}>
+      <button className="button secondary" onClick={() => setAiIssue({ id: "page-improvement", type: "page_review", label: "Improve this page’s headings, metadata or image descriptions", severity: "info", url: page.url, detail: "Review existing page evidence and the field I choose.", action: "Generate a draft for manual review." })}>Generate a page improvement</button>
+      {issues.map(issue => <details className="issue-review" key={issue.id} open={activeIssue === issue.id || issues.length === 1}>
         <summary><span className={"severity-tag " + issue.severity}>{issue.severity === "high" ? "Needs attention" : issue.severity === "info" ? "Context" : "Review"}</span><strong>{issue.label}</strong><small>{labels[reviews[issue.id]?.state || "open"]}</small></summary>
         <div className="issue-review-body"><h4>What we found</h4><p className="evidence">{issue.detail}</p>
           {issue.type === "broken_internal" && <><p>The HTTP status at the top belongs to this source page. These are the destinations that returned error responses during this scan:</p><ul className="destination-list">{targets(issue).map(url => <li key={url}>{showLink(url, known.get(url))}<small>Anchor text: {page.links.filter(link => link.url === url).map(link => link.text || "No text label").join(" · ") || "Not retained in this scan"}</small></li>)}</ul></>}
@@ -81,6 +90,7 @@ export default function PageEvidence({ page, scan, initialIssueId, inspect, draf
           {issue.type === "http_error" && <button className="text-button" onClick={() => { setTab("links"); setDirection("incoming"); setQuery(""); }}>Find pages linking to this URL</button>}
           <h4>How to address it</h4><ol>{fixSteps(issue, page).map(step => <li key={step}>{step}</li>)}</ol>
           {editableField(issue) && <button className="button secondary" onClick={() => draft(editableField(issue)!)}>Draft this fix</button>}
+          <button className="button secondary" onClick={() => { setAiIssue(issue); requestAnimationFrame(() => document.getElementById("problem-ai-assistant")?.scrollIntoView({ block: "start" })); }}>Generate AI solution for this problem</button>
           <label>Work status<select value={reviews[issue.id]?.state || "open"} onChange={event => updateReview(issue, { state: event.target.value as Review["state"] })}>{Object.entries(labels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
           <label>Resolution note (optional)<textarea rows={2} maxLength={2000} value={reviews[issue.id]?.note || ""} onChange={event => updateReview(issue, { note: event.target.value })} placeholder="What needs changing, where, and what you checked" /></label>
         </div>
@@ -100,6 +110,8 @@ export default function PageEvidence({ page, scan, initialIssueId, inspect, draf
       <ul className="destination-list">{direction === "outgoing" ? outgoing.map((link, index) => <li key={index}>{showLink(link.url, link.target)}<small>Anchor: {link.text || "No text label"} · {link.internal ? "Internal" : "External"} · {link.nofollow ? "nofollow" : "follow"}</small>{link.target && link.target.status >= 400 && <p>{[401, 403, 429].includes(link.target.status) ? "Check access or rate limits before removing this link." : link.target.status >= 500 ? "Investigate the destination server before changing the source link." : "Correct, replace or remove this link, or restore its destination."}</p>}</li>) : incoming.map((link, index) => <li key={index}><button className="page-link" onClick={() => inspect(link.source)}>{link.source.title || path(link.source.url)}</button>{showLink(link.source.url, link.source)}<small>Anchor: {link.text || "No text label"} · {link.nofollow ? "nofollow" : "follow"} · Links to: {link.url}</small></li>)}</ul>
       {!(direction === "outgoing" ? outgoing.length : incoming.length) && <p className="notice">No matching links in this scan. Incoming links from unscanned pages are unknown.</p>}
       <p className="notice">To change a link, edit its source page or shared template in your CMS, publish, and re-scan. This workspace does not publish link edits.</p>
+      <LinkOpportunities scan={scan} page={page} inspect={inspect} />
     </>}
+    {aiIssue && <ProblemAssistant key={aiIssue.id} page={page} scan={scan} issue={aiIssue} save={save} setup={setup} />}
   </section>;
 }

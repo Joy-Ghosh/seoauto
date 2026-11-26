@@ -37,7 +37,7 @@ function compactEvidence(scan: Scan, pageUrl?: string): Scan {
   const result = {
     ...scan,
     sourcePageCount: scan.pages.length,
-    pages: relevant.map((p) => ({
+    pages: relevant.map(({ outline: _outline, technologies: _technologies, ...p }) => ({
       ...p,
       title: p.title.slice(0, 300),
       description: p.description.slice(0, 500),

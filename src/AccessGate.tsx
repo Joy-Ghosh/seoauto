@@ -130,7 +130,7 @@ export default function AccessGate({
           This password is separate from your NVIDIA API key. It is not a public account registration.
         </small>
         <a className="button secondary public-tools-link" href="/public.html">Use free tools without signing in</a>
-        <details className="access-explanation"><summary>Why do I need a workspace password?</summary><p>It protects the owner's hosted crawler and AI endpoints from unrestricted use. Scan history stays in the browser; this is a single-owner workspace, not separate customer accounts.</p><p>For a full audit without using the owner's compute, run the open-source app locally. Public PageSpeed and Lighthouse tools are available without this password.</p><a href="https://github.com/Joy-Ghosh/seoauto" target="_blank" rel="noreferrer">Get the open-source workbench</a></details>
+        <details className="access-explanation"><summary>Why do I need a workspace password?</summary><p>It protects the owner's hosted crawler and AI endpoints from unrestricted use. Scan history stays in the browser; this is a single-owner workspace, not separate customer accounts.</p><p>For a full audit without using the owner's compute, run the local app locally. Public PageSpeed and Lighthouse tools are available without this password.</p><a href="https://github.com/Joy-Ghosh/seoauto" target="_blank" rel="noreferrer">Get the local workbench</a></details>
       </section>
     </main>
   );

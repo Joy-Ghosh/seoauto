@@ -16,9 +16,9 @@
 <button class="node" data-detail="server"><span class="number">Server</span><strong>Crawl & AI handlers</strong><small>server/index.ts or api/index.ts</small></button>
 <button class="node" data-detail="evidence"><span class="number">Evidence</span><strong>Audit, research, exports</strong><small>Shared types and bounded outputs</small></button>
 </div><div class="detail" id="structure-detail" role="status" aria-live="polite"><h3>One interface, two runtimes</h3><p>The client adapter routes local requests to the Node server. Hosted mode uses a stateless Vercel handler, streams scan evidence, and stores completed scans in this browser.</p></div><div class="table-wrap"><table><thead><tr><th>Area to refine</th><th>Owning files</th><th>Purpose</th></tr></thead><tbody>
-<tr><td>Navigation, audit, drafts</td><td><code>src/main.tsx · workspace.css</code></td><td>Website context, page drawer and saved changes</td></tr>
+<tr><td>Navigation, audit, drafts</td><td><code>src/main.tsx · PageEvidence.tsx · workspace.css</code></td><td>Website context, issue evidence, per-page link explorer and saved changes</td></tr>
 <tr><td>AI workflow</td><td><code>src/AiStudio.tsx · ai-types.ts<br>server/ai.ts · ai-api.ts</code></td><td>Nine tasks, provider calls, output validation and provenance</td></tr>
-<tr><td>Website evidence</td><td><code>server/crawler.ts · audit.ts<br>src/topology.ts</code></td><td>Crawling, HTML checks and internal connections</td></tr>
+<tr><td>Website evidence</td><td><code>server/crawler.ts · audit.ts<br>src/topology.ts · page-evidence.ts</code></td><td>Crawling, HTML checks and internal connections</td></tr>
 <tr><td>Hosted trust boundary</td><td><code>api/index.ts<br>server/hosted-auth.ts · public-network.ts</code></td><td>Owner access, encrypted cookies, public destination restrictions</td></tr>
 <tr><td>Storage & export</td><td><code>src/local-db.ts · client.ts<br>src/exports.ts · ScanBackup.tsx</code></td><td>Hosted browser database, reports and portable scan backups</td></tr>
 <tr><td>Optional WordPress apply</td><td><code>wordpress/local-seo-repairs/local-seo-repairs.php</code></td><td>Import plan, preview, apply supported fields, restore</td></tr>

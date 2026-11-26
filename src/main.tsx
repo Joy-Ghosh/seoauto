@@ -26,7 +26,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { Page, Repair, Scan } from "./types";
+import type { Issue, Page, Repair, Scan } from "./types";
+import PageEvidence from "./PageEvidence";
 import { connections } from "./topology";
 import { pollScan } from "./poll-scan";
 import DeferredTool from "./DeferredTool";
@@ -39,6 +40,7 @@ import "./workspace.css";
 const AiStudio = lazy(() => import("./AiStudio"));
 const ScanBackup = lazy(() => import("./ScanBackup"));
 type View = "overview" | "issues" | "pages" | "links" | "repairs" | "ai";
+const views: View[] = ["overview", "issues", "pages", "links", "repairs", "ai"];
 type History = {
   id: string;
   url: string;
@@ -91,6 +93,8 @@ function App() {
   const owner = useOwnerSession();
   const [composerOpen, setComposerOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [detailIssueId, setDetailIssueId] = useState<string>();
+  const [detailTrail, setDetailTrail] = useState<Page[]>([]);
   const scanInput = useRef<HTMLInputElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const selection = useRef(0);
@@ -105,7 +109,7 @@ function App() {
   } | null>(null);
   const [view, setView] = useState<View>(
       () =>
-        nav.find((item) => "#" + item.id === location.hash)?.id || "overview",
+        views.find(item => "#" + item === location.hash) || "overview",
     ),
     [scan, setScan] = useState<Scan | null>(null),
     [history, setHistory] = useState<History[]>([]),
@@ -139,7 +143,7 @@ function App() {
   }, []);
   useEffect(() => {
     const restoreView = () => {
-      const next = nav.find((item) => "#" + item.id === location.hash)?.id;
+      const next = views.find(item => "#" + item === location.hash);
       if (next) {
         setView(next);
         setQuery("");
@@ -208,9 +212,9 @@ function App() {
     const trap = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
       const dialog = document.querySelector('[role="dialog"]');
-      const items = dialog?.querySelectorAll<HTMLElement>(
-        "button:not([disabled]),a[href],select,input,textarea",
-      );
+      const items = [...(dialog?.querySelectorAll<HTMLElement>(
+        "button:not([disabled]),a[href],select:not([disabled]),input:not([disabled]),textarea:not([disabled]),summary",
+      ) || [])].filter(item => item.getClientRects().length > 0);
       if (!items?.length) return;
       const first = items[0],
         last = items[items.length - 1];
@@ -307,6 +311,11 @@ function App() {
     requestAnimationFrame(() =>
       heading.current?.focus({ preventScroll: true }),
     );
+  };
+  const reviewIssue = (issue: Issue) => {
+    setDetailTrail([]);
+    setDetailIssueId(issue.id);
+    setDetail(pages.find(page => page.url === issue.url) || null);
   };
   const selectScan = async (id: string) => {
     const request = ++selection.current;
@@ -1080,11 +1089,7 @@ function App() {
                           <h3>{i.label}</h3>
                           <button
                             className="page-link"
-                            onClick={() =>
-                              setDetail(
-                                pages.find((p) => p.url === i.url) || null,
-                              )
-                            }
+                            onClick={() => reviewIssue(i)}
                           >
                             {short(i.url)}
                           </button>
@@ -1096,13 +1101,9 @@ function App() {
                         </div>
                         <button
                           className="button secondary"
-                          onClick={() =>
-                            setDetail(
-                              pages.find((p) => p.url === i.url) || null,
-                            )
-                          }
+                          onClick={() => reviewIssue(i)}
                         >
-                          Review page
+                          Review problem
                           <ChevronRight size={14} />
                         </button>
                       </article>
@@ -1407,12 +1408,17 @@ function App() {
       </div>
       {detail && (
         <PageDrawer
+          key={scan!.id + detail.url}
           page={detail}
+          scan={scan!}
+          initialIssueId={detailIssueId}
+          inspect={(page) => { setDetailTrail(previous => [...previous, detail]); setDetailIssueId(undefined); setDetail(page); }}
+          back={detailTrail.length ? () => { setDetail(detailTrail[detailTrail.length - 1]); setDetailTrail(previous => previous.slice(0, -1)); setDetailIssueId(undefined); } : undefined}
           repairs={repairs}
           save={addRepair}
-          close={() => setDetail(null)}
-          findings={issues.filter((i) => i.url === detail.url).length}
+          close={() => { setDetail(null); setDetailTrail([]); }}
           analyze={() => openAi("optimize", detail.url)}
+          rescan={() => { setUrl(detail.url); setLimit(10); setDetail(null); setDetailTrail([]); newScan(); }}
           viewPlan={() => {
             setDetail(null);
             choose("repairs");
@@ -1551,19 +1557,27 @@ function HistoryPanel({
 }
 function PageDrawer({
   page,
+  scan,
+  initialIssueId,
+  inspect,
+  back,
   repairs,
   save,
   close,
-  findings,
   analyze,
+  rescan,
   viewPlan,
 }: {
   page: Page;
+  scan: Scan;
+  initialIssueId?: string;
+  inspect: (page: Page) => void;
+  back?: () => void;
   repairs: Repair[];
   save: (r: Repair) => void;
   close: () => void;
-  findings: number;
   analyze: () => void;
+  rescan: () => void;
   viewPlan: () => void;
 }) {
   const [field, setField] = useState<Repair["field"]>("title"),
@@ -1612,6 +1626,7 @@ function PageDrawer({
             <X size={21} />
           </button>
         </div>
+        {back && <button className="text-button page-review-back" onClick={back}>← Back to previous page</button>}
         <h2 id="page-title">{page.title || "Untitled page"}</h2>
         <button
           className="button secondary page-ai-button"
@@ -1632,8 +1647,15 @@ function PageDrawer({
         <div className="drawer-stats">
           <span>HTTP {page.status || "unknown"}</span>
           <span>{page.wordCount} words</span>
-          <span>{findings} findings</span>
+          <span>{scan.issues.filter(issue => issue.url === page.url).length} findings</span>
         </div>
+        <button className="button secondary" onClick={rescan}><Search size={16} />Prepare re-scan of this page</button>
+        <PageEvidence page={page} scan={scan} initialIssueId={initialIssueId} inspect={inspect} draft={(next) => {
+          setField(next);
+          if (next === "alt_text") setImage(Math.max(0, page.images.findIndex(image => image.alt === null)));
+          requestAnimationFrame(() => { const editor = document.getElementById("page-draft-value"); editor?.scrollIntoView({ block: "center" }); editor?.focus({ preventScroll: true }); });
+        }} />
+        <details className="metadata-details"><summary>Page metadata & response evidence</summary>
         <h3>What the page serves</h3>
         <dl className="page-data">
           <div>
@@ -1663,7 +1685,8 @@ function PageDrawer({
             </dd>
           </div>
         </dl>
-        <section className="draft-editor">
+        </details>
+        {page.status >= 200 && page.status < 300 && !page.error ? <section className="draft-editor">
           <div className="section-heading">
             <h3>Draft a change</h3>
             <span className="local-badge">Not published</span>
@@ -1703,6 +1726,7 @@ function PageDrawer({
           <label>
             Your replacement
             <textarea
+              id="page-draft-value"
               rows={4}
               value={value}
               onChange={(e) => {
@@ -1759,7 +1783,7 @@ function PageDrawer({
             Saving creates a local draft. Export and review it in WordPress
             before applying.
           </p>
-        </section>
+        </section> : <p className="notice">Restore this page’s response in your website or hosting settings before drafting metadata. Use the problem instructions and incoming links above to plan the fix.</p>}
       </aside>
     </div>
   );

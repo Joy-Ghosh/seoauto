@@ -11,3 +11,4 @@ graphify-out/
 *.zip
 *access*.txt
 *secrets*.json
+.taste-skill/

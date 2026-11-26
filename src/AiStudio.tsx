@@ -440,11 +440,10 @@ export default function AiStudio({
         <div className="section-heading">
           <div>
             <h2 id="ai-tools-heading">
-              <Sparkles size={18} /> Shape your research
+              <Sparkles size={18} /> Choose what you want to achieve
             </h2>
             <p>
-              Choose a task and focus. You’ll review the result before saving
-              any changes.
+              Your website scan is already included. Choose an outcome, allow the analysis, then run it.
             </p>
             {scan && (
               <p className="ai-site-context">
@@ -455,23 +454,17 @@ export default function AiStudio({
             )}
           </div>
         </div>
-        <div className="research-chooser">
-          <label>
-            Research task
-            <select
-              value={task}
-              disabled={!!busy}
-              onChange={(event) => chooseTool(event.target.value as AiTask)}
-            >
-              {AI_TOOLS.map((tool) => (
-                <option key={tool.id} value={tool.id}>
-                  {tool.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p>{AI_TOOLS.find((tool) => tool.id === task)?.description}</p>
+        <div className="outcome-tools" role="group" aria-label="Common AI tasks">
+          {AI_TOOLS.filter(tool => ["priorities", "keywords", "competitors", "optimize"].includes(tool.id)).sort((a, b) => a.id === "priorities" ? -1 : b.id === "priorities" ? 1 : 0).map(tool =>
+            <button key={tool.id} type="button" aria-pressed={task === tool.id} disabled={!!busy} onClick={() => chooseTool(tool.id)}>
+              <strong>{tool.id === "priorities" ? "Tell me what to fix first" : tool.id === "keywords" ? "Find keyword ideas" : tool.id === "competitors" ? "Find competitors & gaps" : "Improve a page"}</strong><span>{tool.description}</span>
+            </button>
+          )}
         </div>
+        <details className="extra-tools" open={["content", "brief", "links", "schema", "ask"].includes(task)}>
+          <summary>More AI tools · content, links, schema and questions</summary>
+          <div className="extra-tool-list" role="group" aria-label="More AI tasks">{AI_TOOLS.filter(tool => !["priorities", "keywords", "competitors", "optimize"].includes(tool.id)).map(tool => <button type="button" className="button secondary" key={tool.id} aria-pressed={task === tool.id} disabled={!!busy} onClick={() => chooseTool(tool.id)}>{tool.name}</button>)}</div>
+        </details>
         {!scan ? (
           <p className="notice">
             Scan a website or open a saved scan from Overview to give AI
@@ -485,6 +478,9 @@ export default function AiStudio({
               void run();
             }}
           >
+            <div className="selected-outcome"><Check size={18} /><div><strong>{AI_TOOLS.find(tool => tool.id === task)?.name}</strong><p>{task === "brief" ? "Add a topic below to create your brief." : task === "ask" ? "Enter your question below." : task === "optimize" ? "Choose the page you want to improve." : "Ready to use this scan. Extra instructions are optional."}</p></div></div>
+            <details className="research-context task-options" open={["brief", "ask", "optimize"].includes(task)}>
+              <summary>{["brief", "ask", "optimize"].includes(task) ? "Task details" : "Customize this analysis (optional)"}</summary>
             <div className="ai-fields">
               <label className="ai-wide">
                 {task === "brief"
@@ -495,6 +491,8 @@ export default function AiStudio({
                   onChange={(e) => setSeeds(e.target.value)}
                   placeholder="e.g. WordPress SEO, ecommerce product pages"
                   maxLength={1500}
+                  required={task === "brief"}
+                  onInvalid={(event) => { const disclosure = event.currentTarget.closest("details"); if (disclosure) disclosure.open = true; }}
                   disabled={!!busy}
                 />
               </label>
@@ -556,10 +554,12 @@ export default function AiStudio({
                   rows={3}
                   maxLength={3000}
                   required={task === "ask"}
+                  onInvalid={(event) => { const disclosure = event.currentTarget.closest("details"); if (disclosure) disclosure.open = true; }}
                   disabled={!!busy}
                 />
               </label>
             </div>
+            </details>
             <details className="research-context">
               <summary>
                 Audience & language{" "}
@@ -610,8 +610,7 @@ export default function AiStudio({
               />
               <span>
                 Send sampled titles, descriptions, page text, links and audit
-                findings to NVIDIA for this analysis. Results stay in this
-                browser. NVIDIA account limits apply.
+                findings to NVIDIA for this analysis. NVIDIA account limits apply.
               </span>
             </label>
             <div className="ai-run-row">

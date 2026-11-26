@@ -48,12 +48,10 @@ type History = {
   issues: number;
 };
 const nav = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "issues", label: "Findings", icon: FileSearch },
-  { id: "pages", label: "Pages", icon: Files },
-  { id: "links", label: "Links", icon: GitBranch },
-  { id: "repairs", label: "Repair plan", icon: ListChecks },
-  { id: "ai", label: "AI Research", icon: Sparkles },
+  { id: "overview", label: "Start", icon: LayoutDashboard },
+  { id: "issues", label: "Website audit", icon: FileSearch },
+  { id: "ai", label: "AI tools", icon: Sparkles },
+  { id: "repairs", label: "Saved changes", icon: ListChecks },
 ] as const;
 const short = (url: string) => {
   try {
@@ -395,11 +393,10 @@ function App() {
             <button
               key={n.id}
               className={
-                (view === n.id ? "nav-item active" : "nav-item") +
-                (view === "links" && n.id === "pages" ? " mobile-parent" : "")
+                (view === n.id || (["pages", "links"].includes(view) && n.id === "issues") ? "nav-item active" : "nav-item")
               }
               onClick={() => choose(n.id)}
-              aria-current={view === n.id ? "page" : undefined}
+              aria-current={view === n.id || (["pages", "links"].includes(view) && n.id === "issues") ? "page" : undefined}
             >
               <n.icon size={18} />
               <span className="desktop-nav-label">{n.label}</span>
@@ -407,7 +404,8 @@ function App() {
                 {n.id === "repairs"
                   ? "Plan"
                   : n.id === "ai"
-                    ? "Research"
+                    ? "AI tools"
+                    : n.id === "issues" ? "Audit"
                     : n.label}
               </span>
               {n.id === "repairs" && repairs.length > 0 && (
@@ -417,6 +415,7 @@ function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
+          <a className="nav-item" href="/project-guide.html" target="_blank" rel="noreferrer"><GitBranch size={18} /> Project map & guide</a>
           <button className="nav-item" onClick={() => setHelp(true)}>
             <CircleHelp size={18} />
             Help & scan limits
@@ -499,8 +498,8 @@ function App() {
               <h1 ref={heading} tabIndex={-1}>
                 {view === "overview"
                   ? scan
-                    ? "Website overview"
-                    : "A better website starts here."
+                    ? "Your next website improvement"
+                    : "SEO audit for your website"
                   : view === "issues"
                     ? "Findings"
                     : view === "pages"
@@ -508,8 +507,8 @@ function App() {
                       : view === "links"
                         ? "Internal links"
                         : view === "ai"
-                          ? "AI Research"
-                          : "Repair plan"}
+                          ? "AI tools for this website"
+                          : "Saved changes"}
               </h1>
               <p>
                 {view === "overview"
@@ -540,8 +539,9 @@ function App() {
               </a>
             )}
           </div>
-          {(view === "pages" || view === "links") && (
+          {(["issues", "pages", "links"].includes(view)) && (
             <div className="page-segments" role="group" aria-label="Page views">
+              <button aria-pressed={view === "issues"} onClick={() => choose("issues")}>Issues to fix</button>
               <button
                 aria-pressed={view === "pages"}
                 onClick={() => choose("pages")}
@@ -777,6 +777,11 @@ function App() {
               )}
               {view === "overview" && (
                 <>
+                  <section className="workflow-path" aria-label="Your website workflow">
+                    <button onClick={() => choose("issues")}><span>1</span><div><strong>Review the audit</strong><small>{affected} pages need review</small></div><ArrowRight size={18} /></button>
+                    <button onClick={() => openAi("priorities")} disabled={running || !pages.length}><span>2</span><div><strong>Choose an AI tool</strong><small>Ideas, comparisons and drafts</small></div><ArrowRight size={18} /></button>
+                    <button onClick={() => choose("repairs")}><span>3</span><div><strong>Review saved changes</strong><small>{repairs.length ? `${repairs.length} drafts ready to review` : "Save drafts, then export"}</small></div><ArrowRight size={18} /></button>
+                  </section>
                   <section
                     className="next-step"
                     aria-labelledby="next-step-heading"
@@ -834,6 +839,7 @@ function App() {
                       <ArrowRight size={16} />
                     </button>
                   </section>
+                  <details className="audit-details"><summary>Scan statistics & coverage · {pages.length} pages read · {high} high-priority findings</summary>
                   <div className="metrics">
                     <Metric
                       label="Pages read"
@@ -949,6 +955,7 @@ function App() {
                       </button>
                     </section>
                   </div>
+                  </details>
                   <section
                     className="panel scan-ai-actions"
                     aria-labelledby="scan-ai-heading"
@@ -1018,10 +1025,10 @@ function App() {
                       {n}
                     </p>
                   ))}
-                  <HistoryPanel
+                  <details className="audit-details"><summary>Other saved scans</summary><HistoryPanel
                     history={history.filter((h) => h.id !== scan.id)}
                     select={(id) => void selectScan(id)}
-                  />
+                  /></details>
                 </>
               )}
               {view === "issues" && (
@@ -1391,7 +1398,7 @@ function App() {
             <span>
               {hosted ? "SEO Workbench · Private" : "Local SEO Workbench"}
             </span>
-            <span>Clear evidence. Human decisions.</span>
+            <a className="guide-link" href="/project-guide.html" target="_blank" rel="noreferrer">Project map & guide</a>
             <button className="text-button" onClick={() => setHelp(true)}>
               About the checks <ArrowUpRight size={13} />
             </button>

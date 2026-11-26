@@ -30,3 +30,13 @@ The app does not have a live search engine, keyword metrics, rank tracker or ana
 The WordPress companion remains unverified against a live WordPress runtime; its PHP syntax parser check passes.
 
 Local hardware was inspected for a model recommendation: NVIDIA GeForce RTX 3050 Laptop GPU with 4 GB VRAM and about 15 GB usable system RAM. Qwen3 4B via Ollama was recommended as a local option, but neither Ollama nor a local model was installed or integrated during this work. The app's current AI provider is NVIDIA.
+
+## Workflow simplification — 26 November 2026
+
+Four main destinations replace six: Start, Website audit, AI tools and Saved changes. The audit keeps issue, page and link evidence in contextual subviews. Start shows the review → analysis → saved-changes path; detailed statistics and previous scans are disclosed on demand. AI offers four common outcomes and five additional tools, reuses scan context, and collapses optional setup. Required brief/question fields reveal their containing details on browser validation.
+
+The public project guide is available at `/project-guide.html`, with a separate script compatible with the existing Content Security Policy. It contains no credentials or user scan data. It explains usage, owning source files, runtime/storage differences and three proposed next investments.
+
+Validation: 32 automated tests passed with host localhost access (the restricted sandbox blocked three HTTP integration tests). Production build passed. Manual local checks covered audit subviews, AI task switching, page-focus preservation, optional fields, guide tabs and node details. AI view had no document overflow at 390px and 320px; four mobile navigation controls measured 55px tall. No live provider generation or WordPress application was repeated for this UI-only change.
+
+Design Taste gate: FAIL 16, round 1. Open findings: hero-fill; two flush; three no-visual; two button-styles; two cta; five section-tile; container. The checker assumes a marketing page with full-screen sections, marketing imagery and a `.wrap` shell. Those requirements conflict with the requested compact task workspace. No waivers or checker overrides were added. The checker also could not walk 1440; it is not a full accessibility certification. Footer controls subsequently received 44px minimum height. The direct browser interaction checks above are separate evidence.

@@ -2467,20 +2467,11 @@ footer .text-button {
     display: block;
   }
   .sidebar nav {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .nav-item {
     font-size: 11px;
     letter-spacing: 0;
-  }
-  .nav-item:nth-child(4) {
-    display: none;
-  }
-  .nav-item:nth-child(5) {
-    order: 6;
-  }
-  .nav-item:nth-child(6) {
-    order: 5;
   }
   .nav-item.mobile-parent {
     background: var(--accent);
@@ -2643,3 +2634,23 @@ footer .text-button {
     --line: #8e99aa;
   }
 }
+/* Outcome workflow: details remain available without blocking the first task. */
+.workflow-path{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:24px}
+.workflow-path button{display:flex;align-items:center;gap:12px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;min-height:108px;transition:border-color .15s,transform .15s}
+.workflow-path button:hover{border-color:var(--green);transform:translateY(-2px)}
+.workflow-path button:active{transform:translateY(0)}
+.workflow-path button>span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--green);font-weight:700;flex-shrink:0}
+.workflow-path button>div{flex:1;min-width:0}.workflow-path strong,.workflow-path small{display:block}.workflow-path small{color:var(--muted);font-size:13px;margin-top:4px}
+.audit-details{margin:20px 0;border-block:1px solid var(--line);padding:8px 0}.audit-details>summary{min-height:44px;align-content:center;cursor:pointer;font-weight:600}.audit-details[open]>summary{margin-bottom:16px}
+.outcome-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:8px 0 16px}
+.outcome-tools button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:20px;text-align:left;min-height:100px;transition:border-color .15s,background .15s}
+.outcome-tools button[aria-pressed=true]{border-color:var(--green);background:var(--accent);box-shadow:inset 3px 0 var(--green)}
+.outcome-tools button:hover{border-color:var(--green)}.outcome-tools strong,.outcome-tools span{display:block}.outcome-tools span{font-size:14px;color:var(--muted);margin-top:6px}
+.extra-tools{margin-bottom:20px}.extra-tools summary{cursor:pointer;min-height:44px;align-content:center;color:var(--green)}.extra-tool-list{display:flex;flex-wrap:wrap;gap:8px;padding:12px 0}.extra-tool-list [aria-pressed=true]{background:var(--accent);border-color:var(--green)}
+.selected-outcome{display:flex;gap:12px;align-items:flex-start;padding:16px 0}.selected-outcome>svg{color:var(--green);margin-top:3px}.selected-outcome p{color:var(--muted);font-size:14px;margin-top:4px}.task-options .ai-fields{padding-top:16px}.sidebar-bottom>a{text-decoration:none}
+@media(max-width:1100px){.workflow-path{grid-template-columns:1fr}.workflow-path button{min-height:80px}}
+@media(max-width:700px){.outcome-tools{grid-template-columns:1fr}.outcome-tools button{min-height:88px;padding:16px}.sidebar nav{grid-template-columns:repeat(4,minmax(0,1fr))}.page-segments{flex-wrap:wrap}.page-segments button{min-height:44px}.workflow-path{gap:8px}.workflow-path button{padding:16px}}
+@media(prefers-reduced-motion:reduce){.workflow-path button{transition:none}.workflow-path button:hover{transform:none}}
+
+.workflow-path small,.outcome-tools span,.selected-outcome p{font-size:14px}
+footer .guide-link,footer .text-button{display:inline-flex;align-items:center;min-height:44px}

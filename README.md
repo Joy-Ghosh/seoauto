@@ -72,3 +72,7 @@ Scans are saved as JSON under `data/`. Drafts are stored in this browser's local
 
 
 Optional Search Console CSV/Google connection and its setup are documented in [docs/SEARCH-CONSOLE.md](docs/SEARCH-CONSOLE.md). Website audit also offers baseline/new-scan verification. New scans retain passive technology hints and a safe HTML skeleton; older scans use a labeled fallback. Per-problem AI can draft H1/title/description/image-alt suggestions, with explicit sharing consent and user-provided image context. See [docs/NEXT-IMPROVEMENTS.md](docs/NEXT-IMPROVEMENTS.md) for the three priorities, free API/repository research and implementation limits.
+
+### Manage saved websites
+
+Open **Saved websites** in the header or sidebar. Search all saved scans, open one, or choose **Delete scan** to move it to **Trash**. Restore it from Trash whenever needed. Each scan is managed separately, including repeated scans of one domain. Drafts, notes and research remain available after restoration; the live website is never changed. Trashing does not free disk/browser storage. Stop a running scan before deleting it. Local scans are saved on this computer; hosted scans remain in the current browser. See [Ponytail audit](docs/PONYTAIL-AUDIT.md) for the code review and remaining limits.

@@ -17,9 +17,18 @@ test("site technology cache isolates origins and rejects expired or malformed ev
 });
 
 test("website summary deduplicates scan evidence and excludes other origins", () => {
-  const page = (url: string, confidence: "possible" | "strong") => ({ url, technologies: [{ name: "Next.js", confidence, evidence: "Build asset" }] }) as Page;
+  const page = (url: string, confidence: "possible" | "strong") => ({ url, images: [], links: [], technologies: [{ name: "Next.js", confidence, evidence: "Build asset" }] }) as unknown as Page;
   const results = scanTechnologies([page("https://example.com/", "possible"), page("https://example.com/blog", "strong"), { url: "https://foreign.com", technologies: [{ name: "Shopify", confidence: "strong", evidence: "CDN" }] } as Page], "https://example.com");
   assert.deepEqual(results.map(t => [t.name, t.confidence]), [["Next.js", "strong"]]);
+});
+
+test("legacy Hestia scan identifies WordPress from same-site retained images without a live request", () => {
+  const url = "https://hestia.webrush.net.in/";
+  const page = { url, finalUrl: url, images: [{ src: url + "wp-content/uploads/logo.png" }], links: [] } as unknown as Page;
+  assert.equal(scanTechnologies([page], url)[0].name, "WordPress");
+  assert.match(scanTechnologies([page], url)[0].evidence, /saved scan/);
+  page.images[0].src = "https://unrelated.example/wp-content/logo.png";
+  assert.deepEqual(scanTechnologies([page], url), []);
 });
 
 test("common platforms produce distinct evidence without inventing hidden CMS", () => {

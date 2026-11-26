@@ -1,19 +1,14 @@
 import { Parser } from "htmlparser2";
-import { fetchDocument, robotsAllows } from "./crawler.js";
-import { publicFetch, publicUrl, boundedText } from "./public-network.js";
+import { fetchDocument, robotsAllows, readRobots } from "./crawler.js";
+import { publicFetch, publicUrl } from "./public-network.js";
 import type { Page } from "../src/types.js";
 export async function inspectTechnology(input: string, signal: AbortSignal, fetcher: typeof fetch = publicFetch) {
   const url = publicUrl(input); const origin = new URL(url).origin;
-  const robotsResponse = await fetcher(origin + "/robots.txt", { signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]) });
-  if (robotsResponse.status >= 500 || [401, 403, 429].includes(robotsResponse.status)) { await robotsResponse.body?.cancel(); throw new Error("Technology inspection could not confirm crawler access from robots.txt. Retry later."); }
-  let robots = robotsResponse.ok ? await boundedText(robotsResponse, 500000) : "";
-  if (!robotsResponse.ok) await robotsResponse.body?.cancel();
+  let robots = await readRobots(url, signal, fetcher);
   if (!robotsAllows(robots, url)) throw new Error("robots.txt excludes this URL from inspection.");
   const doc = await fetchDocument(url, signal, fetcher);
   if (new URL(doc.url || url).origin !== origin) {
-    const finalRobots = await fetcher(new URL("/robots.txt", doc.url || url), { signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]) });
-    if (finalRobots.status >= 500 || [401, 403, 429].includes(finalRobots.status)) { await finalRobots.body?.cancel(); throw new Error("Redirected robots.txt could not confirm inspection access."); }
-    robots = finalRobots.ok ? await boundedText(finalRobots, 500000) : ""; if (!finalRobots.ok) await finalRobots.body?.cancel();
+    robots = await readRobots(doc.url || url, signal, fetcher);
     if (!robotsAllows(robots, doc.url || url)) throw new Error("robots.txt excludes the redirected URL from further inspection.");
   }
   const technologies: NonNullable<Page["technologies"]> = [...(doc.technologies || [])];

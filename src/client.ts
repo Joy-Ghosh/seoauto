@@ -1,6 +1,7 @@
 import type { Scan } from "./types";
 import type { AiResult } from "./ai-types";
 import { localDb } from "./local-db";
+import { setScanTrash } from "./scan-trash";
 export let hosted = false;
 export function configureClient(value: boolean) {
   hosted = value;
@@ -139,7 +140,7 @@ export async function api<T>(
   signal?: AbortSignal,
 ): Promise<T> {
   if (!hosted) return http<T>(path, body, signal);
-  if (path === "/api/scans" && body === undefined) {
+  if ((path === "/api/scans" || path === "/api/scans?trash=1") && body === undefined) {
     const scans = await localDb.scans();
     for (const scan of scans)
       if (scan.status === "running" && !active.has(scan.id)) {
@@ -149,13 +150,14 @@ export async function api<T>(
         );
         await localDb.saveScan(scan);
       }
-    return scans
+    return scans.filter(scan => Boolean(scan.deletedAt) === path.includes("trash=1"))
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
-      .map(({ id, url, status, startedAt, pages, issues }) => ({
+      .map(({ id, url, status, startedAt, pages, issues, deletedAt }) => ({
         id,
         url,
         status,
         startedAt,
+        deletedAt,
         pages: pages.length,
         issues: issues.length,
       })) as T;
@@ -189,7 +191,7 @@ export async function api<T>(
     void remoteCrawl(scan, abort);
     return { id: scan.id } as T;
   }
-  const match = path.match(/^\/api\/scans\/([\w-]+)(?:\/(stop))?$/);
+  const match = path.match(/^\/api\/scans\/([\w-]+)(?:\/(stop|trash|restore))?$/);
   if (match) {
     if (match[2] === "stop") {
       active.get(match[1])?.abort.abort();
@@ -197,6 +199,13 @@ export async function api<T>(
     }
     const scan = active.get(match[1])?.scan || (await localDb.scan(match[1]));
     if (!scan) throw new Error("Scan not found in this browser.");
+    if (["trash", "restore"].includes(match[2]) && body) {
+      if (scan.status === "running" || active.has(scan.id)) throw new Error("Stop the scan before deleting it.");
+      const next = setScanTrash(scan, match[2] === "restore");
+      await localDb.saveScan(next);
+      return { ok: true } as T;
+    }
+    if (scan.deletedAt) throw new Error("This scan is in Trash. Restore it from Saved websites.");
     return structuredClone(scan) as T;
   }
   if (path.startsWith("/api/ai/reports?"))

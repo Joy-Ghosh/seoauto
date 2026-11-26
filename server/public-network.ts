@@ -67,16 +67,22 @@ export function createPublicFetch(
   return async (input, init) => {
     let url = publicUrl(String(input));
     for (let count = 0; count <= 5; count++) {
-      const response = (await transport(url, {
+      let response: Response;
+      try { response = (await transport(url, {
         method: "GET",
         signal: init?.signal,
         headers: {
-          "User-Agent": "SEOWorkbench/0.2 (+read-only website audit)",
+          "User-Agent": "LocalSEOWorkbench/0.2 (+read-only website audit)",
           Accept: "text/html,application/xhtml+xml,text/plain",
         },
         redirect: "manual",
         dispatcher,
-      })) as unknown as Response;
+      })) as unknown as Response; }
+      catch (error) {
+        const code = (error as { cause?: { code?: string } }).cause?.code;
+        if (["ENOTFOUND", "EAI_AGAIN"].includes(code || "")) throw new Error("Website DNS lookup failed. The domain could not be resolved; check its DNS and try again.");
+        throw error;
+      }
       if (
         [301, 302, 303, 307, 308].includes(response.status) &&
         response.headers.has("location")

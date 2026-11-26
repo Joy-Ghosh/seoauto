@@ -20,6 +20,12 @@ export function scanTechnologies(pages: Page[], url: string) {
     for (const hint of page.technologies || []) {
       if (!hints.has(hint.name) || hint.confidence === "strong") hints.set(hint.name, hint);
     }
+    // Older scans retain asset URLs even when technology metadata was not recorded.
+    const pageOrigin = new URL(page.finalUrl || page.url).origin;
+    const assets = [...page.images.map(image => image.src), ...page.links.map(link => link.url)];
+    if (assets.some(asset => { try { const target = new URL(asset); return target.origin === pageOrigin && /\/(wp-content|wp-includes)\//i.test(target.pathname); } catch { return false; } })) {
+      if (!hints.has("WordPress")) hints.set("WordPress", { name: "WordPress", confidence: "strong", evidence: "WordPress wp-content/wp-includes asset URLs retained in the saved scan" });
+    }
   }
   return [...hints.values()];
 }

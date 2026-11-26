@@ -1,5 +1,5 @@
 import http from "node:http";
-import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
+import { readFile, mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,8 @@ import { createAiApi } from "./ai-api.js";
 import { createSearchConsoleApi } from "./search-console.js";
 import { inspectTechnology } from "./inspect-technology.js";
 import type { Scan } from "../src/types.js";
+import { setScanTrash } from "../src/scan-trash.js";
+import { saveScanFile } from "./scan-store.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const data = path.join(root, "data");
 await mkdir(data, { recursive: true });
@@ -86,7 +88,7 @@ const server = http.createServer(async (req, res) => {
         send(
           res,
           200,
-          [...scans.values()]
+          [...scans.values()].filter(scan => Boolean(scan.deletedAt) === (u.searchParams.get("trash") === "1"))
             .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
             .map(({ id, url, status, startedAt, pages, issues }) => ({
               id,
@@ -143,10 +145,7 @@ const server = http.createServer(async (req, res) => {
         controllers.set(scan.id, controller);
         void crawl(scan, controller.signal, () => {
           if (scan.status !== "running") {
-            void writeFile(
-              path.join(data, scan.id + ".json"),
-              JSON.stringify(scan),
-            ).catch(console.error);
+            void saveScanFile(data, scan).catch(console.error);
             controllers.delete(scan.id);
           }
         });
@@ -154,13 +153,21 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const match = u.pathname.match(
-        /^\/api\/scans\/([\w-]+)(?:\/(stop|report|csv))?$/,
+        /^\/api\/scans\/([\w-]+)(?:\/(stop|report|csv|trash|restore))?$/,
       );
       const scan = match && scans.get(match[1]);
       if (!scan) {
         send(res, 404, { error: "Scan not found." });
         return;
       }
+      if (req.method === "POST" && ["trash", "restore"].includes(match![2])) {
+        if (scan.status === "running" || controllers.has(scan.id)) { send(res, 409, { error: "Stop the scan before deleting it." }); return; }
+        const next = setScanTrash(scan, match![2] === "restore");
+        await saveScanFile(data, next);
+        scans.set(scan.id, next);
+        send(res, 200, { ok: true }); return;
+      }
+      if (scan.deletedAt) { send(res, 404, { error: "This scan is in Trash. Restore it from Saved websites." }); return; }
       if (req.method === "POST" && match![2] === "stop") {
         controllers.get(scan.id)?.abort();
         send(res, 200, { ok: true });

@@ -36,6 +36,7 @@ export const pageSchema = z.object({
   error: str().optional(),
 });
 export const scanSchema = z.object({
+  deletedAt: z.iso.datetime().optional(),
   sourcePageCount: z.number().int().min(1).max(200).optional(),
   id: z.string().regex(/^[\w-]{1,100}$/),
   url,

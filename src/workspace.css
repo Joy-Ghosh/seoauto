@@ -2722,3 +2722,24 @@ button:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visib
 }
 .technology-details summary { display:flex; align-items:center; gap:12px; }
 .technology-details summary::after { margin-left:auto; }
+.technology-provenance { margin:10px 0 0; font-size:13px; color:var(--muted); }
+.saved-websites-dialog { position:relative; width:min(780px,calc(100vw - 32px)); max-height:calc(100dvh - 48px); overflow:auto; border:1px solid var(--line); border-radius:14px; padding:28px; background:var(--surface); box-shadow:var(--shadow); }
+.saved-websites-dialog h2 { font-size:24px; margin:0 48px 12px 0; }
+.saved-websites-dialog>p { max-width:65ch; margin:0 0 12px; }
+.saved-websites-dialog>small { display:block; color:var(--muted); margin-bottom:20px; }
+.saved-websites-close { position:absolute; right:16px; top:16px; width:44px; height:44px; display:grid; place-items:center; border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:8px; }
+.saved-websites-dialog label { display:grid; gap:8px; font-weight:600; margin:16px 0; }
+.saved-websites-dialog input { width:100%; min-width:0; min-height:44px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:var(--surface); color:var(--ink); font-size:16px; }
+.saved-website-list article { display:flex; gap:20px; justify-content:space-between; padding:20px 0; border-top:1px solid var(--line); }
+.saved-website-list article>div { min-width:0; overflow-wrap:anywhere; }
+.saved-website-list p { margin:4px 0 8px; font-size:13px; }
+.saved-website-list small { color:var(--muted); font-size:13px; }
+.saved-website-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; flex-shrink:0; max-width:260px; }
+.saved-website-actions .button { min-height:44px; }
+@media(max-width:700px) {
+ .manage-websites-button { width:44px; min-width:44px; padding:8px; justify-content:center; }
+ .manage-websites-button span { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+ .saved-websites-dialog { padding:20px; max-height:calc(100dvh - 24px); }
+ .saved-website-list article { display:block; }
+ .saved-website-actions { margin-top:12px; justify-content:flex-start; max-width:none; }
+}

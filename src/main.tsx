@@ -37,6 +37,7 @@ import AccessGate, { useOwnerSession } from "./AccessGate";
 import { exportScan, exportCsv } from "./exports";
 import "./workspace.css";
 import WebsiteTechnology from "./WebsiteTechnology";
+import SavedWebsites from "./SavedWebsites";
 const AiStudio = lazy(() => import("./AiStudio"));
 const ScanBackup = lazy(() => import("./ScanBackup"));
 const SearchConsolePanel = lazy(() => import("./SearchConsolePanel"));
@@ -98,6 +99,7 @@ function App() {
   const owner = useOwnerSession();
   const [composerOpen, setComposerOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [manageWebsites, setManageWebsites] = useState(false);
   const [detailIssueId, setDetailIssueId] = useState<string>();
   const [detailTrail, setDetailTrail] = useState<Page[]>([]);
   const scanInput = useRef<HTMLInputElement>(null);
@@ -128,6 +130,8 @@ function App() {
     [repairs, setRepairs] = useState<Repair[]>([]),
     [help, setHelp] = useState(false),
     [toast, setToast] = useState("");
+  const selectedScanId = useRef<string | null>(null);
+  selectedScanId.current = scan?.id || null;
   const refreshHistory = () =>
     api<History[]>("/api/scans")
       .then(setHistory)
@@ -177,8 +181,10 @@ function App() {
     }
   }, [scan?.id]);
   useEffect(() => {
-    if (scan)
-      localStorage.setItem("repairs:" + scan.id, JSON.stringify(repairs));
+    if (scan) {
+      try { localStorage.setItem("repairs:" + scan.id, JSON.stringify(repairs)); }
+      catch { setError("Your draft changes could not be saved to browser storage. Export the plan before closing this page."); }
+    }
   }, [repairs]);
   useEffect(() => {
     if (!toast) return;
@@ -204,13 +210,14 @@ function App() {
       if (e.key === "Escape") {
         setDetail(null);
         setHelp(false);
+        setManageWebsites(false);
       }
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, []);
   useEffect(() => {
-    if (!detail && !help) return;
+    if (!detail && !help && !manageWebsites) return;
     const previous = document.activeElement as HTMLElement | null;
     const oldOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -240,7 +247,7 @@ function App() {
       document.removeEventListener("keydown", trap);
       previous?.focus();
     };
-  }, [Boolean(detail), help]);
+  }, [Boolean(detail), help, manageWebsites]);
   const start = async (sample = false) => {
     const request = ++selection.current;
     setBusy(true);
@@ -442,6 +449,7 @@ function App() {
         </nav>
         <div className="sidebar-bottom">
           <a className="nav-item" href="/project-guide.html" target="_blank" rel="noreferrer"><GitBranch size={18} /> Project map & guide</a>
+          <button className="nav-item" onClick={() => setManageWebsites(true)}><Files size={18} aria-hidden="true" /> Saved websites</button>
           <button className="nav-item" onClick={() => setHelp(true)}>
             <CircleHelp size={18} />
             Help & scan limits
@@ -493,6 +501,7 @@ function App() {
             </label>
           </div>
           <div className="topbar-actions">
+            <button className="button secondary compact manage-websites-button" onClick={() => setManageWebsites(true)}><Files size={16} aria-hidden="true" /><span>Saved websites</span></button>
             <button
               className="button secondary compact new-scan-button"
               onClick={newScan}
@@ -1453,6 +1462,10 @@ function App() {
           }}
         />
       )}{" "}
+      {manageWebsites && <SavedWebsites close={() => setManageWebsites(false)} select={id => { setManageWebsites(false); void selectScan(id); }} changed={(id, trashed) => {
+        refreshHistory();
+        if (trashed && selectedScanId.current === id) { ++selection.current; setDetail(null); setDetailTrail([]); setUndoRepair(null); setAiLaunch(null); setScan(null); setRepairs([]); sessionStorage.removeItem("seo:last-scan"); choose("overview"); }
+      }} />}
       {help && (
         <div className="scrim" onClick={() => setHelp(false)}>
           <section

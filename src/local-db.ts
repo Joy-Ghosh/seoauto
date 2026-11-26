@@ -41,6 +41,7 @@ async function save(store: string, value: unknown) {
           "Browser storage is full or blocked. Export your work before clearing site data.",
         ),
       );
+    tx.onabort = () => reject(new Error("Browser storage write was interrupted. Your changes were not saved."));
   });
 }
 export const localDb = {

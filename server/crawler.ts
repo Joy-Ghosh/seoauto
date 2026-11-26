@@ -2,6 +2,16 @@ import type { Scan, Page } from "../src/types.js";
 import { normalizeUrl, parsePage, analyze } from "./audit.js";
 import { detectTechnologies } from "./technologies.js";
 import { boundedText } from "./public-network.js";
+export async function readRobots(url: string, signal: AbortSignal, fetcher: typeof fetch = fetch) {
+  const response = await fetcher(new URL("/robots.txt", url), {
+    signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]),
+    headers: { "User-Agent": "LocalSEOWorkbench/0.2 (+read-only website audit)" },
+  });
+  if (response.ok) return boundedText(response, 500_000);
+  await response.body?.cancel();
+  if (response.status >= 500 || [401, 403, 429].includes(response.status)) throw new Error("robots.txt access could not be confirmed. Retry later.");
+  return "";
+}
 export function robotsAllows(text: string, url: string) {
   const groups: {
     agents: string[];
@@ -116,17 +126,12 @@ export async function crawl(
     const seen = new Set<string>(),
       queue = [scan.url];
     try {
-      const r = await fetcher(new URL("/robots.txt", origin), {
-        signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]),
-        headers: { "User-Agent": "LocalSEOWorkbench/0.1" },
-      });
-      if (r.ok) robots = await boundedText(r, 500_000);
-      else if (r.status >= 500) throw new Error("Robots server error");
+      robots = await readRobots(scan.url, signal, fetcher);
     } catch {
       scan.notice.push(
         "robots.txt could not be read. Crawl stopped to avoid ignoring unknown restrictions.",
       );
-      scan.status = "failed";
+      scan.status = signal.aborted ? "cancelled" : "failed";
       scan.error = "Could not read robots.txt. Check the site or try again.";
       return;
     }
@@ -162,12 +167,8 @@ export async function crawl(
           scan.notice.push(
             "The start URL redirected; crawl scope follows its final origin.",
           );
-          const r = await fetcher(new URL("/robots.txt", origin), {
-            signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]),
-          });
-          if (r.ok) robots = await boundedText(r, 500_000);
-          else if (r.status >= 500)
-            throw new Error("Redirected robots.txt unavailable");
+          robots = await readRobots(page.finalUrl, signal, fetcher);
+          if (!robotsAllows(robots, page.finalUrl)) throw new Error("robots.txt excludes the redirected URL from further crawling.");
         }
       } catch (error) {
         if (signal.aborted) break;

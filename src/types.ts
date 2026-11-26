@@ -45,6 +45,7 @@ export interface Repair {
   imageSrc?: string;
 }
 export interface Scan {
+  deletedAt?: string;
   sourcePageCount?: number;
   id: string;
   url: string;

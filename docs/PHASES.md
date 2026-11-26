@@ -8,7 +8,7 @@
 - Task-specific output restrictions, constrained JSON, source-page provenance and reviewable title/description drafts.
 - Hosted owner access, session-isolated credentials, public-network-only crawling and resource limits.
 - Browser-local history, scan backup/import, HTML/CSV/Markdown exports and a downloadable WordPress companion.
-- Private GitHub source and a protected Vercel deployment, once account setup permits publication.
+- Public source in the owner-provided `Joy-Ghosh/seoauto` repository, connected to the deployed owner-authenticated Vercel workspace. Local scans and credentials are excluded from publication.
 
 ## Phase two: ChatGPT MCP connection — not implemented yet
 

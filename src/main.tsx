@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowDownToLine,
@@ -28,14 +28,16 @@ import {
 } from "lucide-react";
 import type { Page, Repair, Scan } from "./types";
 import { connections } from "./topology";
-import AiStudio from "./AiStudio";
+import { pollScan } from "./poll-scan";
+import DeferredTool from "./DeferredTool";
 import { AI_TOOLS } from "./ai-types";
 import type { AiTask } from "./ai-types";
 import { api, hosted } from "./client";
 import AccessGate, { useOwnerSession } from "./AccessGate";
 import { exportScan, exportCsv } from "./exports";
-import ScanBackup from "./ScanBackup";
 import "./workspace.css";
+const AiStudio = lazy(() => import("./AiStudio"));
+const ScanBackup = lazy(() => import("./ScanBackup"));
 type View = "overview" | "issues" | "pages" | "links" | "repairs" | "ai";
 type History = {
   id: string;
@@ -90,8 +92,10 @@ function download(name: string, data: unknown) {
 function App() {
   const owner = useOwnerSession();
   const [composerOpen, setComposerOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
   const scanInput = useRef<HTMLInputElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const selection = useRef(0);
   const [undoRepair, setUndoRepair] = useState<{
     scanId: string;
     repair: Repair;
@@ -124,10 +128,16 @@ function App() {
   useEffect(() => {
     refreshHistory();
     const previous = sessionStorage.getItem("seo:last-scan");
+    const request = selection.current;
     if (previous)
       void api<Scan>("/api/scans/" + previous)
-        .then(setScan)
-        .catch(() => sessionStorage.removeItem("seo:last-scan"));
+        .then((value) => {
+          if (request === selection.current) setScan(value);
+        })
+        .catch(() => {
+          if (request === selection.current)
+            sessionStorage.removeItem("seo:last-scan");
+        });
   }, []);
   useEffect(() => {
     const restoreView = () => {
@@ -173,17 +183,14 @@ function App() {
   }, [toast]);
   useEffect(() => {
     if (scan?.status !== "running") return;
-    const t = setInterval(
-      () =>
-        api<Scan>("/api/scans/" + scan.id)
-          .then((s) => {
-            setScan(s);
-            if (s.status !== "running") refreshHistory();
-          })
-          .catch((e) => setError(e.message)),
-      700,
+    return pollScan(
+      () => api<Scan>("/api/scans/" + scan.id),
+      (value) => {
+        setScan((current) => (current?.id === value.id ? value : current));
+        if (value.status !== "running") refreshHistory();
+      },
+      (error) => setError(error.message),
     );
-    return () => clearInterval(t);
   }, [scan?.id, scan?.status]);
   useEffect(() => {
     const close = (e: KeyboardEvent) => {
@@ -228,6 +235,7 @@ function App() {
     };
   }, [Boolean(detail), help]);
   const start = async (sample = false) => {
+    const request = ++selection.current;
     setBusy(true);
     setError("");
     try {
@@ -241,15 +249,17 @@ function App() {
         limit,
         sample,
       });
+      const value = await api<Scan>("/api/scans/" + data.id);
+      if (request !== selection.current) return;
       setRepairs([]);
-      setScan(await api<Scan>("/api/scans/" + data.id));
+      setScan(value);
       choose("overview");
       setComposerOpen(false);
       setDetail(null);
       setQuery("");
       refreshHistory();
     } catch (e) {
-      setError((e as Error).message);
+      if (request === selection.current) setError((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -290,6 +300,7 @@ function App() {
     [issues],
   );
   const choose = (v: View) => {
+    if (v !== "ai") setAiLaunch(null);
     if (location.hash !== "#" + v) window.history.pushState(null, "", "#" + v);
     setView(v);
     setQuery("");
@@ -298,6 +309,19 @@ function App() {
     requestAnimationFrame(() =>
       heading.current?.focus({ preventScroll: true }),
     );
+  };
+  const selectScan = async (id: string) => {
+    const request = ++selection.current;
+    setError("");
+    try {
+      const value = await api<Scan>("/api/scans/" + id);
+      if (request !== selection.current) return;
+      setScan(value);
+      choose("overview");
+      setComposerOpen(false);
+    } catch (error) {
+      if (request === selection.current) setError((error as Error).message);
+    }
   };
   const newScan = () => {
     choose("overview");
@@ -422,13 +446,7 @@ function App() {
                 value={scan?.id || ""}
                 onChange={(event) => {
                   if (!event.target.value) return;
-                  void api<Scan>("/api/scans/" + event.target.value)
-                    .then((value) => {
-                      setScan(value);
-                      choose("overview");
-                      setComposerOpen(false);
-                    })
-                    .catch((e) => setError(e.message));
+                  void selectScan(event.target.value);
                 }}
               >
                 <option value="" disabled>
@@ -661,22 +679,24 @@ function App() {
             </section>
           )}
           {view === "ai" ? (
-            <AiStudio
-              key={scan?.id || "setup"}
-              scan={scan}
-              addRepair={addRepair}
-              repairs={repairs}
-              initialTask={
-                aiLaunch?.scanId === scan?.id ? aiLaunch?.task : undefined
-              }
-              initialPageUrl={
-                aiLaunch?.scanId === scan?.id ? aiLaunch?.pageUrl : undefined
-              }
-              inspect={(target) => {
-                setUrl(target);
-                choose("overview");
-              }}
-            />
+            <DeferredTool label="AI research">
+              <AiStudio
+                key={scan?.id || "setup"}
+                scan={scan}
+                addRepair={addRepair}
+                repairs={repairs}
+                initialTask={
+                  aiLaunch?.scanId === scan?.id ? aiLaunch?.task : undefined
+                }
+                initialPageUrl={
+                  aiLaunch?.scanId === scan?.id ? aiLaunch?.pageUrl : undefined
+                }
+                inspect={(target) => {
+                  setUrl(target);
+                  choose("overview");
+                }}
+              />
+            </DeferredTool>
           ) : !scan ? (
             <>
               <section className="empty-intro">
@@ -719,11 +739,7 @@ function App() {
               </section>
               <HistoryPanel
                 history={history}
-                select={(id) =>
-                  api<Scan>("/api/scans/" + id)
-                    .then(setScan)
-                    .catch((e) => setError(e.message))
-                }
+                select={(id) => void selectScan(id)}
               />
             </>
           ) : (
@@ -746,7 +762,11 @@ function App() {
                           : "Scan in progress"}
                   </strong>
                   <span>{host(scan.url)}</span>
-                  {host(scan.url) === "sample.example" && <span className="ai-chip">Sample audit · demonstration</span>}
+                  {host(scan.url) === "sample.example" && (
+                    <span className="ai-chip">
+                      Sample audit · demonstration
+                    </span>
+                  )}
                   <time>{new Date(scan.startedAt).toLocaleString()}</time>
                 </div>
               )}
@@ -793,12 +813,24 @@ function App() {
                     </div>
                     <button
                       className="button primary"
+                      disabled={running && !pages.length}
                       onClick={() => {
-                        choose(issues.length ? "issues" : "pages");
+                        if (!pages.length) {
+                          setUrl(scan.url);
+                          newScan();
+                          return;
+                        }
+                        choose(affected ? "issues" : "pages");
                         if (high) setSeverity("high");
                       }}
                     >
-                      {issues.length ? "Review findings" : "Explore pages"}
+                      {!pages.length
+                        ? running
+                          ? "Reading your website…"
+                          : "Try scan again"
+                        : affected
+                          ? "Review findings"
+                          : "Explore pages"}
                       <ArrowRight size={16} />
                     </button>
                   </section>
@@ -988,7 +1020,7 @@ function App() {
                   ))}
                   <HistoryPanel
                     history={history.filter((h) => h.id !== scan.id)}
-                    select={(id) => api<Scan>("/api/scans/" + id).then(setScan)}
+                    select={(id) => void selectScan(id)}
                   />
                 </>
               )}
@@ -1329,23 +1361,30 @@ function App() {
             </>
           )}
           {view === "overview" && (
-            <details className="data-disclosure">
+            <details
+              className="data-disclosure"
+              onToggle={(event) => setBackupOpen(event.currentTarget.open)}
+            >
               <summary>
                 <ArrowDownToLine size={15} /> Import & backup{" "}
                 <ChevronRight size={14} />
               </summary>
-              <ScanBackup
-                scan={scan}
-                repairs={repairs}
-                imported={(value) => {
-                  setScan(value);
-                  choose("overview");
-                  refreshHistory();
-                  setToast(
-                    "Scan imported into this browser. Review draft changes before export.",
-                  );
-                }}
-              />
+              {backupOpen && (
+                <DeferredTool label="backup tools">
+                  <ScanBackup
+                    scan={scan}
+                    repairs={repairs}
+                    imported={(value) => {
+                      setScan(value);
+                      choose("overview");
+                      refreshHistory();
+                      setToast(
+                        "Scan imported into this browser. Review draft changes before export.",
+                      );
+                    }}
+                  />
+                </DeferredTool>
+              )}
             </details>
           )}
           <footer>
@@ -1726,4 +1765,3 @@ const mount = document.getElementById("root")! as HTMLElement & {
     <App />
   </AccessGate>,
 );
-

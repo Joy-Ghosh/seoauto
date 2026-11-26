@@ -7,6 +7,7 @@ data/
 !.env.example
 .vercel/
 coverage/
+graphify-out/
 *.zip
 *access*.txt
 *secrets*.json

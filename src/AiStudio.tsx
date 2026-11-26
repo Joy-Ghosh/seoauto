@@ -194,11 +194,12 @@ export default function AiStudio({
       )
         .then((saved) => {
           setReports(saved);
-          const latest = initialTask
-            ? saved.find((r) => r.task === initialTask)
+          const selectedTask = initialTask || savedSettings.task;
+          const latest = selectedTask
+            ? saved.find((r) => r.task === selectedTask)
             : saved[0];
           setReport(latest || null);
-          if (latest && !initialTask) setTask(latest.task);
+          if (latest && !selectedTask) setTask(latest.task);
         })
         .catch((e) => {
           if (!abort.signal.aborted) setError(e.message);
@@ -241,7 +242,11 @@ export default function AiStudio({
   async function disconnect() {
     try {
       setStatus(await request<AiStatus>("/api/ai/disconnect", {}));
-      setNotice("Disconnected. The key has been cleared from server memory.");
+      setNotice(
+        hosted
+          ? "Disconnected. Your AI credential cookie has been removed."
+          : "Disconnected. The key has been cleared from server memory.",
+      );
     } catch (e) {
       setError((e as Error).message);
     }

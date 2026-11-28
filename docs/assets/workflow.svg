@@ -1,15 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="350" viewBox="0 0 1120 350" role="img" aria-labelledby="title description">
-  <title id="title">SEO Workbench: scan, review, plan, verify</title>
-  <desc id="description">Crawl a website, inspect page evidence and internal links, save reviewable fixes, apply changes in your own CMS, then re-scan to verify.</desc>
-  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 8 4 0 8" fill="none" stroke="#0066cc" stroke-width="1.4"/></marker></defs>
-  <rect width="1120" height="350" rx="20" fill="#f6f7f9"/>
-  <text x="40" y="48" fill="#0066cc" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="2">SEO WORKBENCH</text>
-  <text x="40" y="88" fill="#1d2330" font-family="Segoe UI,Arial,sans-serif" font-size="29" font-weight="700">From crawl evidence to a verified fix.</text>
-  <g fill="#fff" stroke="#dce1e8"><rect x="40" y="125" width="238" height="145" rx="12"/><rect x="307" y="125" width="238" height="145" rx="12"/><rect x="574" y="125" width="238" height="145" rx="12"/><rect x="841" y="125" width="238" height="145" rx="12"/></g>
-  <g fill="#e9f2ff"><circle cx="72" cy="157" r="16"/><circle cx="339" cy="157" r="16"/><circle cx="606" cy="157" r="16"/><circle cx="873" cy="157" r="16"/></g>
-  <g fill="#0066cc" font-family="Segoe UI,Arial,sans-serif" font-size="14" font-weight="700" text-anchor="middle"><text x="72" y="162">1</text><text x="339" y="162">2</text><text x="606" y="162">3</text><text x="873" y="162">4</text></g>
-  <g fill="#1d2330" font-family="Segoe UI,Arial,sans-serif" font-size="20" font-weight="700"><text x="96" y="164">Scan</text><text x="363" y="164">Review</text><text x="630" y="164">Plan</text><text x="897" y="164">Verify</text></g>
-  <g fill="#5c6575" font-family="Segoe UI,Arial,sans-serif" font-size="14"><text x="60" y="205">Read pages and metadata.</text><text x="60" y="230">Keep the source evidence.</text><text x="327" y="205">See each issue in context.</text><text x="327" y="230">Explore internal connections.</text><text x="594" y="205">Save exact changes.</text><text x="594" y="230">Use AI when it helps.</text><text x="861" y="205">Re-scan published changes.</text><text x="861" y="230">Check what actually changed.</text></g>
-  <g stroke="#0066cc" stroke-width="1.5" marker-end="url(#arrow)"><path d="M282 197h18"/><path d="M549 197h18"/><path d="M816 197h18"/></g>
-  <text x="40" y="312" fill="#5c6575" font-family="Segoe UI,Arial,sans-serif" font-size="14">You approve the plan and apply it in your CMS. The audit never publishes changes automatically.</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="340" viewBox="0 0 1120 340" role="img" aria-labelledby="title desc">
+<title id="title">From evidence to a checked change</title><desc id="desc">First scan and inspect a finding. Next save and approve a draft, then apply it in your website editor. Finally re-scan and compare the expected and observed values.</desc>
+<rect width="1120" height="340" rx="24" fill="#f8f8f2"/>
+<g font-family="Segoe UI,Arial,sans-serif" fill="#172015">
+<text x="30" y="45" font-size="25" font-weight="700">One useful change, end to end.</text>
+<rect x="30" y="74" width="330" height="224" rx="23" fill="#e2f295"/><rect x="395" y="74" width="330" height="224" rx="23" fill="#deecdc"/><rect x="760" y="74" width="330" height="224" rx="23" fill="#e9e1f3"/>
+<g font-size="15" font-weight="700" fill="#4c6247"><text x="54" y="112">01 · OPPORTUNITIES</text><text x="419" y="112">02 · PLAN</text><text x="784" y="112">03 · RESULTS</text></g>
+<g font-size="28" font-weight="700"><text x="54" y="156">See the evidence</text><text x="419" y="156">Make the edit</text><text x="784" y="156">Close the loop</text></g>
+<g font-size="18" fill="#374b32"><text x="54" y="196">Scan. Pick a finding.</text><text x="54" y="224">Inspect the page and its links.</text><text x="419" y="196">Save and approve a draft.</text><text x="419" y="224">Apply it in your own editor.</text><text x="784" y="196">Re-scan the published page.</text><text x="784" y="224">Compare expected vs observed.</text></g>
+<g stroke="#bcc9b0"><path d="M54 245H336M419 245H701M784 245H1066"/></g>
+<g font-size="15" font-weight="650"><text x="54" y="275">What is wrong, and where?</text><text x="419" y="275">What exactly will change?</text><text x="784" y="275">Does the response match?</text></g>
+<g fill="none" stroke="#3d5335" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M369 183H386m-6-6 6 6-6 6M734 183H751m-6-6 6 6-6 6"/></g>
+</g></svg>

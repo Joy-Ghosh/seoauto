@@ -1,0 +1,17 @@
+/* Phase 1: a single task column, bounded actions and contextual disclosures. */
+.app .shell { grid-template-columns:minmax(0,1fr); align-content:start; }
+.app .shell>main#workspace-content { width:100%; max-width:1440px; justify-self:center; }
+.app :is(.button,.text-button) { min-width:0; max-width:100%; white-space:normal; overflow-wrap:anywhere; text-align:center; }
+.app :is(.fix-actions,.measurement-actions,.section-heading,.ai-fields)>* { min-width:0; }
+.app :is(input,select,textarea) { min-width:0; }
+.app input[type=file] { width:100%; max-width:100%; }
+.app .search-import label { min-width:0; }
+.app .result-filters { display:flex; flex-wrap:wrap; }
+.result-card { background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:24px; margin:18px 0; overflow-wrap:anywhere; }
+.result-card h3 { margin:8px 0; }.result-card a { font-size:13px; }
+.result-values { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:20px 0; }.result-values>div { min-width:0; padding:16px; background:#eef4e5; border-radius:14px; }.result-values>div+div { background:#e9e2f2; }.result-values dt { font-size:12px; font-weight:650; margin-bottom:8px; }.result-values dd { white-space:pre-wrap; }
+.advanced-comparison,.focused-more { border:1px solid var(--line); border-radius:16px; margin:20px 0; background:var(--surface); padding:16px; }.advanced-comparison>summary,.focused-more>summary { display:flex; align-items:center; min-height:44px; gap:12px; font-weight:600; }.advanced-comparison>p { margin:16px 0; }
+.focused-observation { padding:18px; margin:18px 0; border:1px solid #c9d8bf; border-radius:16px; background:#edf3e5; overflow-wrap:anywhere; }.focused-observation h3 { margin:8px 0; }.focused-observation p+p { margin-top:10px; }
+.drawer .focused-more .page-evidence { margin-top:16px; }.drawer .draft-editor { scroll-margin:20px; }
+.workspace-tools-links { display:flex; flex-wrap:wrap; gap:10px; margin:18px 0; }
+@media(max-width:700px){.result-values { grid-template-columns:1fr; }.result-card { padding:18px; }.result-card .section-heading { flex-direction:column; align-items:start; gap:12px; }.fix-plan .fix-actions>.button,.app .measurement-actions>.button { flex:1 1 100%; }.fix-plan .fix-actions>.button { width:100%; }.app .search-console-panel :is(button,input[type=file]) { max-width:100%; }.app .fix-journey { grid-template-columns:1fr; }.app .fix-journey li { display:grid; grid-template-columns:24px 1fr; gap:2px 10px; }.app .fix-journey li span { grid-row:1/3; margin:0; }.app .fix-journey small { margin:0; }}

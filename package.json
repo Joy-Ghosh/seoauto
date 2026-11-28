@@ -4,17 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx server/index.ts",
-    "build": "tsc --noEmit && vite build && tsx scripts/build-assets.ts",
+    "dev": "npm run prepare:ml && tsx server/index.ts",
+    "build": "npm run prepare:ml && tsc --noEmit && vite build && tsx scripts/build-assets.ts",
     "start": "tsx server/index.ts --production",
     "test": "tsx --test tests/*.test.ts",
     "setup:hosted": "tsx scripts/setup-hosted.ts",
-    "dev:hosted": "tsx --env-file=.env.local server/hosted-dev.ts"
+    "dev:hosted": "tsx --env-file=.env.local server/hosted-dev.ts",
+    "prepare:ml": "tsx scripts/prepare-ml.ts"
   },
   "engines": {
     "node": ">=22.14.0 <25"
   },
   "dependencies": {
+    "@huggingface/transformers": "4.3.2",
     "htmlparser2": "^10.0.0",
     "ipaddr.js": "^2.5.0",
     "lucide-react": "^0.468.0",

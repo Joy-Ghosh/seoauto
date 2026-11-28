@@ -12,3 +12,5 @@ graphify-out/
 *access*.txt
 *secrets*.json
 .taste-skill/
+
+public/ml-runtime/

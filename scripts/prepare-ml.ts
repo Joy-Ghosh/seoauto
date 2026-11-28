@@ -1,0 +1,10 @@
+import { cp, mkdir, readdir, writeFile, unlink } from "node:fs/promises";
+const source = new URL("../node_modules/onnxruntime-web/dist/", import.meta.url);
+const destination = new URL("../public/ml-runtime/", import.meta.url);
+await mkdir(destination, { recursive: true });
+for (const file of await readdir(destination)) if (/^ort-wasm-simd-threaded\.[a-z]+\.(wasm|mjs)$/.test(file)) await unlink(new URL(file, destination));
+for (const file of await readdir(source)) if (/^ort-wasm-simd-threaded\.(wasm|mjs)$/.test(file)) await cp(new URL(file, source), new URL(file, destination));
+await writeFile(new URL("NOTICE.txt", destination), "ONNX Runtime Web — Microsoft Corporation. MIT license. https://github.com/microsoft/onnxruntime/blob/main/LICENSE\nTransformers.js — Hugging Face. Apache-2.0. https://github.com/huggingface/transformers.js/blob/main/LICENSE\nModel weights are separately downloaded, pinned and cached only when requested.\n");
+await cp(new URL("./third-party/onnxruntime-LICENSE.txt", import.meta.url), new URL("LICENSE.txt", destination));
+await cp(new URL("../node_modules/@huggingface/transformers/LICENSE", import.meta.url), new URL("Transformers-LICENSE.txt", destination));
+console.log("Prepared local ONNX runtime assets; no model weights downloaded.");

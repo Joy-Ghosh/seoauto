@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
 import { cancelAll, configureClient, http } from "./client";
+import BrandMark from "./BrandMark";
 export interface RuntimeStatus {
   mode: "local" | "hosted";
   authenticated: boolean;
@@ -80,7 +81,7 @@ export default function AccessGate({
     <main className="access-shell">
       <section className="access-card">
         <span className="access-symbol">
-          <ShieldCheck size={30} />
+          <BrandMark size={40} />
         </span>
         <p className="eyebrow">SEO WORKBENCH · PRIVATE WORKSPACE</p>
         <h1>Owner workspace</h1>

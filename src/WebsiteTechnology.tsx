@@ -9,7 +9,7 @@ export default function WebsiteTechnology({ scan }: { scan: Scan }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
-  const sample = new URL(scan.url).hostname === "sample.example";
+  const sample = (new URL(scan.url).hostname === "sample.example" || new URL(scan.url).hostname === "127.0.0.1" && new URL(scan.url).pathname.startsWith("/fixture"));
   useEffect(() => {
     const abort = new AbortController();
     setInspection(null); setError(""); setBusy(false);

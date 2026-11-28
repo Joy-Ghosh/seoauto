@@ -14,6 +14,7 @@ import { AI_TOOLS, DEFAULT_MODEL } from "./ai-types";
 import type { AiInput, AiResult, AiStatus, AiTask } from "./ai-types";
 import type { Repair, Scan } from "./types";
 import { api as request, hosted } from "./client";
+import { mentionedEvidencePages } from "./ai-link-evidence";
 
 function exportReport(report: AiResult) {
   const lines = [
@@ -76,6 +77,8 @@ export default function AiStudio({
   addRepair,
   repairs,
   inspect,
+  inspectLinks,
+  viewLinks,
   initialTask,
   initialPageUrl,
 }: {
@@ -83,6 +86,8 @@ export default function AiStudio({
   addRepair: (repair: Repair) => void;
   repairs: Repair[];
   inspect: (url: string) => void;
+  inspectLinks: (page: import("./types").Page) => void;
+  viewLinks: () => void;
   initialTask?: AiTask;
   initialPageUrl?: string;
 }) {
@@ -718,6 +723,18 @@ export default function AiStudio({
             </button>
           </div>
           <p className="ai-summary">{report.summary}</p>
+          <div className="measurement-actions">
+            <button className="button secondary" onClick={viewLinks}>Explore actual website links</button>
+          </div>
+          {report.task === "links" && <details className="ai-sources" open>
+            <summary>Inspect donor and receiver pages</summary>
+            <p className="ai-small">Open a scanned page to check incoming links, outgoing links, anchor text and destination responses. These are observed connections from this scan; AI suggestions are proposed edits.</p>
+            <label>Choose a donor or receiver page<select value="" onChange={event => { const page = scan?.pages.find(page => page.url === event.target.value); if (page) inspectLinks(page); }}>
+              <option value="">Choose a scanned page to inspect its links</option>
+              {(scan?.pages || []).map(page => <option key={page.url} value={page.url}>{pathLabel(page.url)} — {page.title || "Untitled"}</option>)}
+            </select></label>
+            {!scan?.pages.length && <p className="notice">No page evidence is available. Scan the website to inspect its connections.</p>}
+          </details>}
           <div className="ai-boundaries">
             {report.warnings.map((warning, i) => (
               <p key={i}>{warning}</p>
@@ -817,6 +834,7 @@ export default function AiStudio({
                     {action.evidence}
                   </p>
                   <p className="ai-prose">{action.action}</p>
+                  <div className="measurement-actions">{mentionedEvidencePages([action.url, action.evidence, action.action].join(" "), scan?.pages || []).map(page => <button className="button secondary" key={page.url} onClick={() => inspectLinks(page)}>Inspect links · {pathLabel(page.url)}</button>)}</div>
                 </article>
               ))}
             </div>
@@ -825,6 +843,7 @@ export default function AiStudio({
             <div className="ai-result-block" key={i}>
               <h3>{section.heading}</h3>
               <p className="ai-prose">{section.text}</p>
+              <div className="measurement-actions">{mentionedEvidencePages(section.text, scan?.pages || []).map(page => <button className="button secondary" key={page.url} onClick={() => inspectLinks(page)}>Inspect links · {pathLabel(page.url)}</button>)}</div>
             </div>
           ))}
           {report.repairs.length > 0 && (
@@ -891,6 +910,7 @@ export default function AiStudio({
                     HTTP {source.status} · {source.title || "Untitled"} ·{" "}
                     {new Date(source.scannedAt).toLocaleString()}
                   </small>
+                  {source.kind === "site" && (() => { const page = scan?.pages.find(page => page.url === source.url || page.finalUrl === source.url); return page ? <button className="text-button" onClick={() => inspectLinks(page)}>Inspect page links</button> : <small>Page not retained in the current scan. Re-scan to inspect its links.</small>; })()}
                 </li>
               ))}
             </ul>

@@ -4,7 +4,7 @@ Audits, page review, technology hints, verification and NVIDIA research work wit
 
 ## CSV: no API configuration
 
-In Google Search Console, open Performance → Search results, select your property/date range, then export. Extract and import either Pages.csv or Queries.csv (not the ZIP). Set the same dates in the workspace first. English column names are supported: Top pages/Top queries (or Page/Query), Clicks, Impressions, CTR and Position. A combined Query + Page CSV is also accepted.
+In Google Search Console, open Performance → Search results, select your property/date range, then export. Upload the ZIP directly, or import Pages.csv or Queries.csv separately. Set the same dates in the workspace first. English column names are supported. ZIP imports keep pages, queries, countries, devices and search appearance as separate dimensions; they cannot establish page-query associations. Chart and Filters files are not loaded. ZIP limits are 15 MB compressed, 12 MB expanded, 3 MB per entry and 32 entries. Extraction happens in the browser.
 
 Up to 5,000 rows and 3 MB are accepted. Invalid and different-host page rows are excluded with a warning. One import replaces the selected website's previous dataset. Separate page/query exports cannot be joined or added together: they do not establish individual page-query associations. Data remains in this browser's localStorage and is not sent to NVIDIA. Keep your original CSV because scan backups do not include search datasets.
 

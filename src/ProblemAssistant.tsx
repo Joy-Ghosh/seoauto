@@ -19,7 +19,7 @@ export default function ProblemAssistant({ page, scan, issue, save, setup }: { p
     if (!replacement.trim() || !["title", "meta_description", "alt_text"].includes(field)) return;
     const imageSrc = field === "alt_text" ? page.images[image]?.src : undefined;
     save({ id: page.url + field + (imageSrc || ""), url: page.url, field: field as Repair["field"], original: field === "title" ? page.title : field === "meta_description" ? page.description : page.images[image]?.alt || "", value: replacement.trim(), ...(imageSrc ? { imageSrc } : {}) });
-    setNotice("AI draft saved to Saved changes. It is not published.");
+    setNotice("AI draft saved to your plan. It is not published.");
   };
   return <section id="problem-ai-assistant" className="problem-ai-assistant" aria-labelledby="problem-ai-title"><h3 id="problem-ai-title">Generate an AI solution</h3><p><strong>{issue.label}</strong> · {page.url}</p><p className="evidence-hint">AI drafts need your review. Titles and descriptions use page text. Alt text needs your description of the image because the text model cannot see its pixels.</p>
     {!connected && <p className="notice">Connect your NVIDIA key to generate solutions. <button className="text-button" onClick={setup}>Open AI connection</button></p>}

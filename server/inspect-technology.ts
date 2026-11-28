@@ -2,6 +2,7 @@ import { Parser } from "htmlparser2";
 import { fetchDocument, robotsAllows, readRobots } from "./crawler.js";
 import { publicFetch, publicUrl } from "./public-network.js";
 import type { Page } from "../src/types.js";
+import { discoverFavicon } from "./favicon.js";
 export async function inspectTechnology(input: string, signal: AbortSignal, fetcher: typeof fetch = publicFetch) {
   const url = publicUrl(input); const origin = new URL(url).origin;
   let robots = await readRobots(url, signal, fetcher);
@@ -11,6 +12,7 @@ export async function inspectTechnology(input: string, signal: AbortSignal, fetc
     robots = await readRobots(doc.url || url, signal, fetcher);
     if (!robotsAllows(robots, doc.url || url)) throw new Error("robots.txt excludes the redirected URL from further inspection.");
   }
+  const favicon = await discoverFavicon(doc.html, doc.url || url, signal, fetcher, robots);
   const technologies: NonNullable<Page["technologies"]> = [...(doc.technologies || [])];
   const add = (name: string, confidence: "strong" | "possible", evidence: string) => { if (!technologies.some(item => item.name === name)) technologies.push({ name, confidence, evidence }); };
   if (/<script[^>]+type=["']module["'][^>]+src=["'][^"']*\/assets\//i.test(doc.html)) add("Vite or similar ES-module build", "possible", "Production module script loaded from an assets directory; bundler identity is not proven");
@@ -28,5 +30,5 @@ export async function inspectTechnology(input: string, signal: AbortSignal, fetc
       if (/__vite__mapDeps|vite\/modulepreload-polyfill/.test(text)) add("Vite", "strong", "Vite build helper in a first-party JavaScript asset");
     } catch { /* HTML hints remain useful if a bounded asset fetch fails. */ }
   }
-  return { url, finalUrl: doc.url || url, status: doc.status, technologies, inspectedAt: new Date().toISOString(), inspectedScripts, limitation: "Passive hints can be hidden or spoofed. They do not prove an undisclosed PHP/Laravel/backend implementation or exact software version." };
+  return { url, finalUrl: doc.url || url, status: doc.status, technologies, favicon, inspectedAt: new Date().toISOString(), inspectedScripts, limitation: "Passive hints can be hidden or spoofed. They do not prove an undisclosed PHP/Laravel/backend implementation or exact software version." };
 }

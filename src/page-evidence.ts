@@ -42,7 +42,7 @@ export function fixSteps(issue: Issue, page: Page): string[] {
     "Re-scan after publishing. A review status is a work note, not proof that the response changed.",
   ];
   if (issue.type === "fetch_error") return ["Check the URL, DNS, TLS, firewall and timeouts. A failed request is not a confirmed 404.", "Open the URL, investigate the server response, then re-scan."];
-  if (editableField(issue)) return [issue.action, "Use Draft this fix below, compare the original and replacement, then save it to Saved changes.", "Export and apply the approved change in your CMS. Re-scan after publishing; saving a draft does not fix the live website."];
+  if (editableField(issue)) return [issue.action, "Use Draft this fix below, compare the original and replacement, then save it to Plan.", "Export and apply the approved change in your CMS. Re-scan after publishing; saving a draft does not fix the live website."];
   if (["missing_h1", "multiple_h1"].includes(issue.type)) return [issue.action, `Current H1s: ${page.h1.join(" / ") || "none found"}. Update the heading hierarchy in the page or template editor.`, "Publish and re-scan. Headings cannot be applied through the metadata repair export."];
   if (issue.type === "noindex") return [issue.action, "If this page should be searchable, remove the unintended noindex directive in your CMS/SEO settings. Preserve it on pages that should stay private or out of search.", "Publish and re-scan. This app does not change robots settings."];
   if (issue.type === "canonical_review") return [issue.action, "Compare both URLs. Set the preferred equivalent URL in your CMS/SEO settings; do not change an intentional canonical just to remove a notice.", "Publish and re-scan the canonical response."];

@@ -1,0 +1,16 @@
+import React, { useEffect, useRef, useState } from "react";
+import "./pip.css";
+export type PipMood = "welcome" | "reading" | "ready" | "saved" | "checked";
+/** Original folded-page character. State decoration, never a source of findings. */
+export function Pip({ mood = "ready", size = 72 }: { mood?: PipMood; size?: number }) {
+  return <svg className={"pip pip-" + mood} width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" focusable="false"><ellipse cx="49" cy="89" rx="24" ry="4" fill="#293523" opacity=".09" /><g className="pip-body"><path d="M27 13Q20 13 20 22V75Q20 83 29 83H71Q79 83 79 75V32L60 13Z" fill="#e2f295" stroke="#263923" strokeWidth="2.5" /><path d="M60 14V30Q60 33 64 33H78" fill="#e9dff3" stroke="#263923" strokeWidth="2.5" strokeLinejoin="round" /><path d="M28 62H69M28 70H57" stroke="#64734c" strokeWidth="2.5" strokeLinecap="round" opacity=".5" /><g className="pip-face"><ellipse cx="37" cy="44" rx="3" ry="4.5" fill="#263923" /><ellipse cx="61" cy="44" rx="3" ry="4.5" fill="#263923" /><path d="M43 53Q49 59 55 53" fill="none" stroke="#263923" strokeWidth="2.5" strokeLinecap="round" /></g><path d="M21 52Q9 48 10 39" fill="none" stroke="#263923" strokeWidth="3" strokeLinecap="round" /><g className="pip-arm"><path d="M79 52Q91 49 90 39" fill="none" stroke="#263923" strokeWidth="3" strokeLinecap="round" /><path d="M87 39L89 34M91 39L95 37" stroke="#263923" strokeWidth="2" strokeLinecap="round" /></g><path d="M35 83V89H28M64 83V89H71" fill="none" stroke="#263923" strokeWidth="3" strokeLinecap="round" /></g>{mood === "checked" && <g><circle cx="80" cy="76" r="13" fill="#dcebd8" stroke="#263923" strokeWidth="2" /><path d="m74 76 4 4 8-9" fill="none" stroke="#263923" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></g>}</svg>;
+}
+export default function PipNote({ mood = "welcome", title, children }: { mood?: PipMood; title: string; children: React.ReactNode }) {
+  const [hidden, setHidden] = useState(() => { try { return localStorage.getItem("seo:pip-hidden") === "1"; } catch { return false; } });
+  const [open, setOpen] = useState(false);
+  const restoreButton = useRef<HTMLButtonElement>(null), guideButton = useRef<HTMLButtonElement>(null), moveFocus = useRef(false);
+  useEffect(() => { if (moveFocus.current) { (hidden ? restoreButton : guideButton).current?.focus(); moveFocus.current = false; } }, [hidden]);
+  const toggle = (value: boolean) => { moveFocus.current = true; setHidden(value); try { localStorage.setItem("seo:pip-hidden", value ? "1" : "0"); } catch {} };
+  if (hidden) return <button ref={restoreButton} className="text-button pip-show" onClick={() => toggle(false)}>Show Pip’s guide</button>;
+  return <aside className="pip-note" aria-label="Pip’s workflow guide"><Pip mood={mood} /><div><span className="eyebrow">PIP · YOUR PAGE GUIDE</span><h3>{title}</h3><button ref={guideButton} className="text-button" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Close quick guide" : "What happens next?"}</button>{open && <div className="pip-explanation">{children}</div>}</div><button className="icon-button" aria-label="Hide Pip’s guide" title="Hide Pip’s guide" onClick={() => toggle(true)}>×</button></aside>;
+}

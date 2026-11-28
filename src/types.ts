@@ -4,6 +4,7 @@ export interface Page {
   outline?: { kind: "heading" | "paragraph" | "image"; text: string; level?: number; src?: string; region: string }[];
   url: string;
   finalUrl: string;
+  favicon?: string;
   status: number;
   title: string;
   description: string;
@@ -43,6 +44,15 @@ export interface Repair {
   original: string;
   value: string;
   imageSrc?: string;
+  workflow?: {
+    revision: number;
+    baselineScanId: string;
+    updatedAt: string;
+    reviewedAt?: string;
+    publishedAt?: string;
+    previous: { revision: number; value: string; updatedAt: string }[];
+    checks: { scanId: string; checkedAt: string; status: "matches_draft" | "does_not_match" | "not_checked"; actual?: string | null }[];
+  };
 }
 export interface Scan {
   deletedAt?: string;

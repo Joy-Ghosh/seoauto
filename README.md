@@ -16,10 +16,12 @@ A page can return HTTP 200 and still send visitors to broken destinations. SEO W
 
 It is built for site owners, developers and SEO practitioners who want to understand **what is wrong, where it happens and what to change next**.
 
-1. **Scan** — read up to 200 pages with crawl progress, cancellation and robots.txt checks.
+1. **Scan** — read up to 1,000 HTML pages locally or up to 200 in the time-limited hosted crawler, with progress, cancellation and robots.txt checks. These are coverage limits, not a guarantee of discovering every page.
 2. **Review** — inspect findings, page metadata, an HTML skeleton and incoming/outgoing connections.
-3. **Plan** — save exact replacements, write your own drafts or request optional AI suggestions.
-4. **Apply and verify** — publish in your website editor, then compare a new scan with your baseline.
+3. **Plan** — compare exact replacements, approve a draft revision and copy its implementation brief. AI suggestions are optional.
+4. **Apply and verify** — publish in your website editor, report publication, then check the expected value. Matching, different and unreadable responses stay distinct. Editing the draft requires a new approval and check.
+
+The dashboard keeps **Opportunities → Plan → Results** connected: filters stay with each scan/view, finding links reopen their evidence, and Results collects saved checks across available scans of the website. [Phase 1 delivery and limits](docs/reviews/2026-11-27/PHASE-1-DELIVERY.md).
 
 ## What you can do
 
@@ -69,9 +71,15 @@ npm start
 
 Set `PORT` if `4317` is already in use. For the private hosted adapter, owner credentials and deployment instructions, follow [HOSTED.md](HOSTED.md). Keep `.env.local` and the private access file out of Git.
 
+## Optional local meaning matches
+
+In **Opportunities → Connections & links**, open **Optional: find connections by meaning**, allow the download, then choose **Match pages by meaning**. Transformers.js compares a sample of up to 24 pages in a browser worker without an inference API key. Review the donor paragraph, receiver and exact anchor (or rewrite-needed notice) before editing your website. Text matching remains available.
+
+First use downloads model/runtime files and uses your device memory and bandwidth. This English-focused feature proposes connections; it does not measure SEO impact or generate titles. [First-use changes, Pip and validation](docs/reviews/2026-11-27/FIRST-USE-AND-PIP.md) · [Licenses and runtime preparation](THIRD-PARTY.md).
+
 ## Optional AI: your evidence, your key
 
-Open **AI tools**, connect your NVIDIA Build key, choose a task and review the disclosure before running it. Focus on a single page for precise drafts, or supply up to two competitor URLs for a comparison grounded in crawled pages.
+Open **Tools → AI tools**, connect your NVIDIA Build key, choose a task and review the disclosure before running it. Focus on a single page for precise drafts, or supply up to two competitor URLs for a comparison grounded in crawled pages.
 
 - The core crawler and manual change plan work without AI.
 - The local server holds the key in memory until disconnect/restart. The hosted adapter uses an encrypted, HttpOnly credential cookie bound to the owner session.
@@ -93,7 +101,7 @@ Lab scores vary between runs. They are separate from search rankings and real-us
 
 ## Publish changes with control
 
-The audit does not publish changes automatically. Saved changes show the current value and your proposed replacement; apply the fix in your CMS, then use **Re-scan this page & verify**.
+The audit does not publish changes automatically. Open **Plan** to review the baseline and replacement, approve the exact revision, and copy an implementation brief for your CMS or coding agent. After publishing in your editor, choose **I’ve published this change**, then **Check published page**. Results return to the original baseline plan; editing a replacement clears its approval and check state. [Read the workflow and current boundaries](docs/ux/10-workflow-implementation.md).
 
 The optional [WordPress companion](wordpress/local-seo-repairs/local-seo-repairs.php) supports preview, explicit apply and guarded restoration for title overrides, supported descriptions and attachment-alt fields. The build creates the plugin ZIP for the hosted download. H1, body content, links, archives and descriptions controlled by another SEO plugin require manual editing. Shared attachment alt text affects every use of that image.
 

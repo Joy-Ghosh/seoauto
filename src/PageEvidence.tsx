@@ -5,20 +5,22 @@ import { editableField, fixSteps, linkStatus, pageLinks } from "./page-evidence"
 import ProblemAssistant from "./ProblemAssistant";
 import PageSkeleton from "./PageSkeleton";
 import LinkOpportunities from "./LinkOpportunities";
+import "./fix-workflow.css";
 
 type Review = { state: "open" | "planned" | "recheck" | "intentional"; note: string };
 const labels = { open: "Open", planned: "Fix planned", recheck: "Changed · needs re-scan", intentional: "Reviewed intentionally" };
 const path = (url: string) => { const value = new URL(url); return value.pathname + value.search; };
 
-export default function PageEvidence({ page, scan, initialIssueId, inspect, draft, save, setup }: {
+export default function PageEvidence({ page, scan, initialIssueId, initialTab = "issues", inspect, draft, save, setup }: {
   page: Page; scan: Scan; initialIssueId?: string;
+  initialTab?: "issues" | "links";
   inspect: (page: Page) => void;
   draft: (field: Repair["field"]) => void;
   save: (repair: Repair) => void;
   setup: () => void;
 }) {
   const issues = scan.issues.filter(issue => issue.url === page.url);
-  const [tab, setTab] = useState<"issues" | "links" | "skeleton">("issues");
+  const [tab, setTab] = useState<"issues" | "links" | "skeleton">(initialTab);
   const [activeIssue, setActiveIssue] = useState(initialIssueId);
   const [aiIssue, setAiIssue] = useState<Issue>();
   const [direction, setDirection] = useState<"outgoing" | "incoming">("outgoing");
@@ -81,7 +83,7 @@ export default function PageEvidence({ page, scan, initialIssueId, inspect, draf
       <button className="button secondary" onClick={() => setAiIssue({ id: "page-improvement", type: "page_review", label: "Improve this page’s headings, metadata or image descriptions", severity: "info", url: page.url, detail: "Review existing page evidence and the field I choose.", action: "Generate a draft for manual review." })}>Generate a page improvement</button>
       {issues.map(issue => <details className="issue-review" key={issue.id} open={activeIssue === issue.id || issues.length === 1}>
         <summary><span className={"severity-tag " + issue.severity}>{issue.severity === "high" ? "Needs attention" : issue.severity === "info" ? "Context" : "Review"}</span><strong>{issue.label}</strong><small>{labels[reviews[issue.id]?.state || "open"]}</small></summary>
-        <div className="issue-review-body"><h4>What we found</h4><p className="evidence">{issue.detail}</p>
+        <div className="issue-review-body"><div className="opportunity-contract"><span className="eyebrow">OBSERVE → REVIEW → DECIDE</span><dl><div><dt>Evidence source</dt><dd>Retrieved response HTML · {new Date(scan.startedAt).toLocaleString()} · HTTP {page.status || "unknown"}</dd></div><div><dt>What this supports</dt><dd>{["title_length", "multiple_h1", "canonical_review", "thin_content"].includes(issue.type) ? "A review signal, not a confirmed defect. Decide whether this is intentional for the page." : "The condition recorded in this scan. Check page purpose before deciding to change it."}</dd></div><div><dt>Next decision</dt><dd>{editableField(issue) ? "Inspect the page evidence, draft an exact replacement, then approve it in your plan." : "Review the instructions below. This finding needs an edit in your website or hosting settings."}</dd></div></dl><p>No search-performance impact has been measured for this change. Saving a draft does not publish or verify it.</p></div><h4>What we found</h4><p className="evidence">{issue.detail}</p>
           {issue.type === "broken_internal" && <><p>The HTTP status at the top belongs to this source page. These are the destinations that returned error responses during this scan:</p><ul className="destination-list">{targets(issue).map(url => <li key={url}>{showLink(url, known.get(url))}<small>Anchor text: {page.links.filter(link => link.url === url).map(link => link.text || "No text label").join(" · ") || "Not retained in this scan"}</small></li>)}</ul></>}
           {issue.type === "missing_alt" && <ul className="destination-list">{page.images.filter(image => image.alt === null).map((image, index) => <li key={index}><a href={image.src} target="_blank" rel="noreferrer">{image.src}</a><small>Missing alt attribute. Check whether the image conveys meaning before adding text.</small></li>)}</ul>}
           {issue.type.startsWith("duplicate_") && <><h4>Pages with the same text</h4><ul className="destination-list">{scan.pages.filter(other => other.url !== page.url && other.status >= 200 && other.status < 300 && (issue.type === "duplicate_title" ? other.title.trim().replace(/\s+/g, " ").toLowerCase() === page.title.trim().replace(/\s+/g, " ").toLowerCase() : other.description.trim().replace(/\s+/g, " ").toLowerCase() === page.description.trim().replace(/\s+/g, " ").toLowerCase())).map(other => <li key={other.url}>{showLink(other.url, other)}</li>)}</ul></>}
@@ -110,7 +112,7 @@ export default function PageEvidence({ page, scan, initialIssueId, inspect, draf
       <ul className="destination-list">{direction === "outgoing" ? outgoing.map((link, index) => <li key={index}>{showLink(link.url, link.target)}<small>Anchor: {link.text || "No text label"} · {link.internal ? "Internal" : "External"} · {link.nofollow ? "nofollow" : "follow"}</small>{link.target && link.target.status >= 400 && <p>{[401, 403, 429].includes(link.target.status) ? "Check access or rate limits before removing this link." : link.target.status >= 500 ? "Investigate the destination server before changing the source link." : "Correct, replace or remove this link, or restore its destination."}</p>}</li>) : incoming.map((link, index) => <li key={index}><button className="page-link" onClick={() => inspect(link.source)}>{link.source.title || path(link.source.url)}</button>{showLink(link.source.url, link.source)}<small>Anchor: {link.text || "No text label"} · {link.nofollow ? "nofollow" : "follow"} · Links to: {link.url}</small></li>)}</ul>
       {!(direction === "outgoing" ? outgoing.length : incoming.length) && <p className="notice">No matching links in this scan. Incoming links from unscanned pages are unknown.</p>}
       <p className="notice">To change a link, edit its source page or shared template in your CMS, publish, and re-scan. This workspace does not publish link edits.</p>
-      <LinkOpportunities scan={scan} page={page} inspect={inspect} />
+      <LinkOpportunities key={scan.id + ":" + page.url} scan={scan} page={page} inspect={inspect} />
     </>}
     {aiIssue && <ProblemAssistant key={aiIssue.id} page={page} scan={scan} issue={aiIssue} save={save} setup={setup} />}
   </section>;

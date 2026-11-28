@@ -1,4 +1,5 @@
 import http from "node:http";
+import { browserPolicy } from "../src/browser-policy.js";
 import { readFile, mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -49,18 +50,15 @@ const esc = (s: string) =>
       ]!,
   );
 const port = Number(process.env.PORT) || 4317;
+const host = process.env.HOST || "127.0.0.1";
 const aiApi = createAiApi(data, scans);
 const searchConsole = createSearchConsoleApi({ secret: process.env.APP_SECRET || randomUUID() + randomUUID(), passwordHash: "", secure: false });
 const server = http.createServer(async (req, res) => {
+  if (production) { res.setHeader("Content-Security-Policy", browserPolicy); res.setHeader("X-Content-Type-Options", "nosniff"); }
   try {
-    if (
-      ![
-        "127.0.0.1",
-        `127.0.0.1:${port}`,
-        "localhost",
-        `localhost:${port}`,
-      ].includes(req.headers.host || "")
-    ) {
+    const requestHost = (req.headers.host || "").replace(/^\[/, "").replace(/\].*$/, "").split(":")[0].toLowerCase();
+    const requestPort = (req.headers.host || "").includes(":") ? Number((req.headers.host || "").split(":").pop()) : 80;
+    if (!["127.0.0.1", "localhost"].includes(requestHost) || (requestPort !== 80 && requestPort !== port)) {
       send(res, 403, { error: "This app accepts localhost requests only." });
       return;
     }
@@ -124,7 +122,7 @@ const server = http.createServer(async (req, res) => {
         const url = normalizeUrl(input.url);
         const limit = Math.max(
           1,
-          Math.min(200, Math.floor(Number(input.limit) || 40)),
+          Math.min(1000, Math.floor(Number(input.limit) || 40)),
         );
         const scan: Scan = {
           id: randomUUID(),
@@ -257,7 +255,8 @@ const server = http.createServer(async (req, res) => {
     }
     const rel = decodeURIComponent(u.pathname);
     const file = path.resolve(root, "dist", "." + rel);
-    if (!file.startsWith(path.join(root, "dist") + path.sep)) {
+    const distRoot = path.resolve(root, "dist");
+    if (file !== distRoot && !file.startsWith(distRoot + path.sep)) {
       res.writeHead(403).end();
       return;
     }
@@ -265,8 +264,12 @@ const server = http.createServer(async (req, res) => {
       const b = await readFile(file);
       res.setHeader(
         "Content-Type",
-        file.endsWith(".js")
+        file.endsWith(".svg")
+          ? "image/svg+xml"
+          : (file.endsWith(".js") || file.endsWith(".mjs"))
           ? "text/javascript"
+          : file.endsWith(".wasm")
+            ? "application/wasm"
           : file.endsWith(".css")
             ? "text/css"
             : "text/html",
@@ -280,7 +283,7 @@ const server = http.createServer(async (req, res) => {
     send(res, 400, { error: (error as Error).message });
   }
 });
-server.listen(port, "127.0.0.1", () =>
+server.listen(port, host, () =>
   console.log(`Local SEO Workbench: http://127.0.0.1:${port}`),
 );
 process.on("SIGINT", () => {

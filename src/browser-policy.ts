@@ -1,0 +1,2 @@
+/** Keep the local production smoke test under the deployed static-content policy. */
+export const browserPolicy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://www.googleapis.com https://huggingface.co https://*.huggingface.co https://*.hf.co; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'";

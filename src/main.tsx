@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CircleHelp,
   CircleStop,
+  Code2,
   FileSearch,
   Files,
   GitBranch,
@@ -36,15 +37,27 @@ import { api, hosted } from "./client";
 import AccessGate, { useOwnerSession } from "./AccessGate";
 import { exportScan, exportCsv } from "./exports";
 import "./workspace.css";
+import "./studio-shell.css";
 import WebsiteTechnology from "./WebsiteTechnology";
 import SavedWebsites from "./SavedWebsites";
+import SiteFavicon from "./SiteFavicon";
+import BrandMark from "./BrandMark";
+import PlanPanel from "./PlanPanel";
+import { readRepairPlan, savePlanDraft } from "./repair-plan";
+import { emptyContext, readContexts, readWorkspaceRoute, type ViewContext } from "./workspace-context";
+import { editableField } from "./page-evidence";
+import "./phase-one.css";
+import PipNote, { Pip } from "./Pip";
+import { nextTask } from "./next-task";
+import "./first-use.css";
 const AiStudio = lazy(() => import("./AiStudio"));
 const ScanBackup = lazy(() => import("./ScanBackup"));
 const SearchConsolePanel = lazy(() => import("./SearchConsolePanel"));
-const VerificationPanel = lazy(() => import("./VerificationPanel"));
+const ResultsPanel = lazy(() => import("./ResultsPanel"));
 const BatchTitles = lazy(() => import("./BatchTitles"));
 const PageSpeedPanel = lazy(() => import("./PageSpeedPanel"));
 const PageEvidence = lazy(() => import("./PageEvidence"));
+const LinkOpportunities = lazy(() => import("./LinkOpportunities"));
 const TechnologyPanel = lazy(() => import("./TechnologyPanel"));
 type View = "overview" | "issues" | "pages" | "links" | "repairs" | "ai" | "search" | "verify" | "titles" | "speed";
 const views: View[] = ["overview", "issues", "pages", "links", "repairs", "ai", "search", "verify", "titles", "speed"];
@@ -57,10 +70,10 @@ type History = {
   issues: number;
 };
 const nav = [
-  { id: "overview", label: "Start", icon: LayoutDashboard },
-  { id: "issues", label: "Website audit", icon: FileSearch },
-  { id: "ai", label: "AI tools", icon: Sparkles },
-  { id: "repairs", label: "Saved changes", icon: ListChecks },
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "issues", label: "Opportunities", icon: FileSearch },
+  { id: "repairs", label: "Plan", icon: ListChecks },
+  { id: "verify", label: "Results", icon: CheckCheck },
 ] as const;
 const short = (url: string) => {
   try {
@@ -97,14 +110,18 @@ function download(name: string, data: unknown) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function App() {
+  const crawlCap = hosted ? 200 : 1000;
   const owner = useOwnerSession();
   const [composerOpen, setComposerOpen] = useState(false);
+  const [repairsScanId, setRepairsScanId] = useState("");
   const [backupOpen, setBackupOpen] = useState(false);
   const [manageWebsites, setManageWebsites] = useState(false);
   const [detailIssueId, setDetailIssueId] = useState<string>();
+  const [linkEvidenceUrl, setLinkEvidenceUrl] = useState<string>();
   const [detailTrail, setDetailTrail] = useState<Page[]>([]);
   const scanInput = useRef<HTMLInputElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
   const selection = useRef(0);
   const [undoRepair, setUndoRepair] = useState<{
     scanId: string;
@@ -117,7 +134,7 @@ function App() {
   } | null>(null);
   const [view, setView] = useState<View>(
       () =>
-        views.find(item => "#" + item === location.hash) || "overview",
+        views.find(item => item === readWorkspaceRoute(location.hash).view) || "overview",
     ),
     [scan, setScan] = useState<Scan | null>(null),
     [history, setHistory] = useState<History[]>([]),
@@ -125,13 +142,25 @@ function App() {
     [limit, setLimit] = useState(40),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [query, setQuery] = useState(""),
-    [severity, setSeverity] = useState("all"),
-    [problemType, setProblemType] = useState("all"),
     [detail, setDetail] = useState<Page | null>(null),
     [repairs, setRepairs] = useState<Repair[]>([]),
     [help, setHelp] = useState(false),
     [toast, setToast] = useState("");
+  const [contexts, setContexts] = useState<Record<string, ViewContext>>(() => { try { return readContexts(sessionStorage.getItem("seo:view-contexts")); } catch { return {}; } });
+  const contextKey = (scan?.id || "none") + ":" + view;
+  const contextKeyRef = useRef(contextKey); contextKeyRef.current = contextKey;
+  const scrollPositions = useRef(new Map<string, number>());
+  const routeLoading = useRef("");
+  const currentContext = contexts[contextKey] || emptyContext;
+  const { query, severity, problemType } = currentContext;
+  const updateContext = (patch: Partial<ViewContext>) => setContexts(previous => Object.fromEntries(Object.entries({ ...previous, [contextKey]: { ...(previous[contextKey] || emptyContext), ...patch } }).slice(-30)));
+  const setQuery = (query: string) => updateContext({ query });
+  const setFindingFilter = (patch: Partial<ViewContext>) => setContexts(previous => ({ ...previous, [(scan?.id || "none") + ":issues"]: { ...(previous[(scan?.id || "none") + ":issues"] || emptyContext), ...patch } }));
+  const setSeverity = (severity: string) => updateContext({ severity });
+  const setProblemType = (problemType: string) => updateContext({ problemType });
+  const [routeFinding, setRouteFinding] = useState(() => readWorkspaceRoute(location.hash).finding);
+  useEffect(() => { try { sessionStorage.setItem("seo:view-contexts", JSON.stringify(contexts)); } catch {} }, [contexts]);
+  useEffect(() => { const key = contextKey; const frame = requestAnimationFrame(() => { if (contextKeyRef.current === key) window.scrollTo({ top: scrollPositions.current.get(key) || 0, behavior: "auto" }); }); return () => cancelAnimationFrame(frame); }, [contextKey]);
   const selectedScanId = useRef<string | null>(null);
   selectedScanId.current = scan?.id || null;
   const refreshHistory = () =>
@@ -140,27 +169,36 @@ function App() {
       .catch(() => {});
   useEffect(() => {
     refreshHistory();
-    const previous = sessionStorage.getItem("seo:last-scan");
+    const previous = readWorkspaceRoute(location.hash).scan || sessionStorage.getItem("seo:last-scan");
     const request = selection.current;
     if (previous)
-      void api<Scan>("/api/scans/" + previous)
+      void api<Scan>("/api/scans/" + encodeURIComponent(previous))
         .then((value) => {
           if (request === selection.current) setScan(value);
         })
         .catch(() => {
-          if (request === selection.current)
+          if (request === selection.current) {
             sessionStorage.removeItem("seo:last-scan");
+            if (readWorkspaceRoute(location.hash).scan) setError("The linked scan is unavailable. It may be in Trash or absent from this workspace. Open an available saved scan.");
+          }
         });
   }, []);
   useEffect(() => {
     const restoreView = () => {
-      const next = views.find(item => "#" + item === location.hash);
+      const route = readWorkspaceRoute(location.hash);
+      const next = views.find(item => item === route.view);
       if (next) {
+        scrollPositions.current.set(contextKeyRef.current, window.scrollY);
+        setRouteFinding(route.finding);
         setView(next);
-        setQuery("");
-        setSeverity("all");
-        setProblemType("all");
         setDetail(null);
+        if (route.scan && route.scan !== selectedScanId.current && routeLoading.current !== route.scan) {
+          routeLoading.current = route.scan;
+          const request = ++selection.current;
+          void api<Scan>("/api/scans/" + encodeURIComponent(route.scan)).then(value => {
+            if (request === selection.current) { setError(""); setScan(value); }
+          }).catch(() => { if (request === selection.current) setError("The linked scan is unavailable. Open an available saved scan."); }).finally(() => { if (routeLoading.current === route.scan) routeLoading.current = ""; });
+        }
       } else if (!location.hash) setView("overview");
     };
     window.addEventListener("popstate", restoreView);
@@ -177,18 +215,22 @@ function App() {
     if (!scan) return;
     try {
       setRepairs(
-        JSON.parse(localStorage.getItem("repairs:" + scan.id) || "[]"),
+        readRepairPlan(localStorage.getItem("repairs:" + scan.id)),
       );
     } catch {
       setRepairs([]);
+      setError("This saved plan could not be read. Keep a browser backup before changing stored data.");
+      setRepairsScanId("");
+      return;
     }
+    setRepairsScanId(scan.id);
   }, [scan?.id]);
   useEffect(() => {
-    if (scan) {
-      try { localStorage.setItem("repairs:" + scan.id, JSON.stringify(repairs)); }
+    if (scan && repairsScanId === scan.id) {
+      try { localStorage.setItem("repairs:" + scan.id, JSON.stringify(repairs)); setError(current => current === "Your draft changes could not be saved to browser storage. Export the plan before closing this page." ? "" : current); }
       catch { setError("Your draft changes could not be saved to browser storage. Export the plan before closing this page."); }
     }
-  }, [repairs]);
+  }, [repairs, repairsScanId, scan?.id]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => {
@@ -211,17 +253,24 @@ function App() {
   useEffect(() => {
     const close = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (readWorkspaceRoute(location.hash).finding) window.history.replaceState(null, "", "#" + readWorkspaceRoute(location.hash).view);
+        setRouteFinding("");
         setDetail(null);
         setHelp(false);
         setManageWebsites(false);
       }
     };
+    const rememberFocus = (event: FocusEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target !== document.body && !target.closest('[role="dialog"], [role="alertdialog"]')) returnFocus.current = target;
+    };
     window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
+    document.addEventListener("focusin", rememberFocus);
+    return () => { window.removeEventListener("keydown", close); document.removeEventListener("focusin", rememberFocus); };
   }, []);
   useEffect(() => {
     if (!detail && !help && !manageWebsites) return;
-    const previous = document.activeElement as HTMLElement | null;
+    const previous = returnFocus.current;
     const oldOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const trap = (e: KeyboardEvent) => {
@@ -248,22 +297,25 @@ function App() {
     return () => {
       document.body.style.overflow = oldOverflow;
       document.removeEventListener("keydown", trap);
-      previous?.focus();
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
+      else heading.current?.focus({ preventScroll: true });
     };
   }, [Boolean(detail), help, manageWebsites]);
-  const start = async (sample = false) => {
+  const start = async (sample = false, retry?: { url: string; limit: number }) => {
     const request = ++selection.current;
     setBusy(true);
     setError("");
     try {
+      const requestedUrl = retry?.url ?? url;
+      const requestedLimit = retry?.limit ?? limit;
       const target = sample
         ? window.location.origin + "/fixture/"
-        : url.trim().match(/^https?:\/\//)
-          ? url.trim()
-          : "https://" + url.trim();
+        : requestedUrl.trim().match(/^https?:\/\//)
+          ? requestedUrl.trim()
+          : "https://" + requestedUrl.trim();
       const data = await api<{ id: string }>("/api/scans", {
         url: target,
-        limit,
+        limit: requestedLimit,
         sample,
       });
       const value = await api<Scan>("/api/scans/" + data.id);
@@ -318,13 +370,14 @@ function App() {
     [issues],
   );
   const choose = (v: View) => {
+    const tools = document.querySelector<HTMLDetailsElement>(".studio-menu");
+    if (tools) tools.open = false;
     if (v !== "ai") setAiLaunch(null);
     if (location.hash !== "#" + v) window.history.pushState(null, "", "#" + v);
+    scrollPositions.current.set(contextKeyRef.current, window.scrollY);
+    setRouteFinding("");
     setView(v);
-    setQuery("");
-    setSeverity("all");
-    setProblemType("all");
-    window.scrollTo({ top: 0, behavior: "auto" });
+    setDetail(null);
     requestAnimationFrame(() =>
       heading.current?.focus({ preventScroll: true }),
     );
@@ -332,19 +385,33 @@ function App() {
   const reviewIssue = (issue: Issue) => {
     setDetailTrail([]);
     setDetailIssueId(issue.id);
+    const hash = "#" + view + "?finding=" + encodeURIComponent(issue.id) + "&scan=" + encodeURIComponent(scan!.id);
+    if (location.hash !== hash) window.history.pushState(null, "", hash);
+    setRouteFinding(issue.id);
     setDetail(pages.find(page => page.url === issue.url) || null);
   };
+  useEffect(() => {
+    if (!routeFinding || !scan || scan.status === "running") return;
+    if (readWorkspaceRoute(location.hash).scan && readWorkspaceRoute(location.hash).scan !== scan.id) return;
+    const issue = scan.issues.find(item => item.id === routeFinding);
+    const page = issue && scan.pages.find(item => item.url === issue.url);
+    if (page && issue) { setError(current => current.startsWith("This finding is not available") ? "" : current); setDetailIssueId(issue.id); setDetail(page); }
+    else { setDetail(null); setError("This finding is not available in the open scan. Choose the original scan or review the available findings."); }
+  }, [routeFinding, scan?.id, scan?.status]);
+  const closePage = () => { setDetail(null); setDetailTrail([]); setLinkEvidenceUrl(undefined); setRouteFinding(""); if (readWorkspaceRoute(location.hash).finding) window.history.replaceState(null, "", "#" + view); };
   const selectScan = async (id: string) => {
     const request = ++selection.current;
     setError("");
     try {
       const value = await api<Scan>("/api/scans/" + id);
-      if (request !== selection.current) return;
+      if (request !== selection.current) return false;
       setScan(value);
       choose("overview");
       setComposerOpen(false);
+      return true;
     } catch (error) {
       if (request === selection.current) setError((error as Error).message);
+      return false;
     }
   };
   const newScan = () => {
@@ -361,16 +428,21 @@ function App() {
   };
   const addRepair = (repair: Repair) => {
     setUndoRepair(null);
-    setRepairs((prev) => [...prev.filter((r) => r.id !== repair.id), repair]);
-    setToast("Saved to your local repair plan.");
+    if (!scan || repairsScanId !== scan.id) { setError("This plan is not ready. Reopen the baseline scan before saving."); return false; }
+    try {
+      const saved = savePlanDraft(repairs.find(r => r.id === repair.id), repair, scan);
+      setRepairs(prev => [...prev.filter(r => r.id !== repair.id), saved]);
+      setToast("Draft saved to your plan. Your website has not changed.");
+      return true;
+    } catch (error) { setError((error as Error).message); return false; }
   };
-  const recheckPage = async (target: string) => {
+  const recheckPage = async (target: string, repair?: Repair) => {
     if (!scan || running || busy) return;
     setBusy(true); setError("");
     const baseline = scan.id;
     try {
       const result = await api<{ id: string }>("/api/scans", { url: target, limit: 1 });
-      try { localStorage.setItem("seo:verify-request:" + result.id, JSON.stringify({ baseline, url: target })); } catch { setToast("Re-scan started. Choose the baseline manually in Verify changes if browser storage is full."); }
+      try { localStorage.setItem("seo:verify-request:" + result.id, JSON.stringify({ baseline, url: target, ...(repair ? { drafts: [{ id: repair.id, revision: repair.workflow?.revision || 1, value: repair.value }] } : {}) })); } catch { setToast("Re-scan started. Choose the baseline manually in Verify changes if browser storage is full."); }
       ++selection.current;
       setDetail(null); setDetailTrail([]); setComposerOpen(false); setScan(await api<Scan>("/api/scans/" + result.id)); choose("verify"); refreshHistory();
     } catch (error) { setError((error as Error).message); }
@@ -395,6 +467,7 @@ function App() {
       <aside className="sidebar">
         <a
           className="brand"
+          aria-label="SEO Workbench home"
           href="#"
           onClick={(e) => {
             e.preventDefault();
@@ -402,7 +475,7 @@ function App() {
           }}
         >
           <span className="brand-symbol">
-            <GitBranch size={22} />
+            <BrandMark size={34} />
           </span>
           <span>
             SEO Workbench
@@ -411,7 +484,7 @@ function App() {
         </a>
         <div className="workspace">
           <span className="site-icon">
-            <Globe2 size={17} />
+            <SiteFavicon url={scan?.url} icon={scan?.pages.find(page => page.url === scan.url || page.finalUrl === scan.url)?.favicon} />
           </span>
           <div>
             <strong>{scan ? host(scan.url) : "Your next website"}</strong>
@@ -420,6 +493,8 @@ function App() {
         </div>
         <button
           className="button primary sidebar-new"
+          aria-label="New scan"
+          title="New scan"
           onClick={newScan}
           disabled={running || busy}
         >
@@ -430,20 +505,20 @@ function App() {
           {nav.map((n) => (
             <button
               key={n.id}
+              aria-label={n.id === "issues" ? "Review opportunities" : n.label}
+              title={n.label}
               className={
-                (view === n.id || (["pages", "links", "search", "verify", "titles", "speed"].includes(view) && n.id === "issues") ? "nav-item active" : "nav-item")
+                (view === n.id || (["pages", "links", "search", "titles", "speed"].includes(view) && n.id === "issues") ? "nav-item active" : "nav-item")
               }
               onClick={() => choose(n.id)}
-              aria-current={view === n.id || (["pages", "links", "search", "verify", "titles", "speed"].includes(view) && n.id === "issues") ? "page" : undefined}
+              aria-current={view === n.id || (["pages", "links", "search", "titles", "speed"].includes(view) && n.id === "issues") ? "page" : undefined}
             >
               <n.icon size={18} />
               <span className="desktop-nav-label">{n.label}</span>
               <span className="mobile-nav-label">
                 {n.id === "repairs"
                   ? "Plan"
-                  : n.id === "ai"
-                    ? "AI tools"
-                    : n.id === "issues" ? "Audit"
+                  : n.id === "issues" ? "Review"
                     : n.label}
               </span>
               {n.id === "repairs" && repairs.length > 0 && (
@@ -452,7 +527,12 @@ function App() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-bottom">
+        <details className="sidebar-bottom studio-menu">
+          <summary aria-label="Workspace tools"><SlidersHorizontal size={17} aria-hidden="true" /><span>Tools</span></summary>
+          <button className="nav-item" onClick={() => choose("ai")}><Sparkles size={18} /> AI tools</button>
+          <button className="nav-item" onClick={() => choose("search")}><Search size={18} /> Search data</button>
+          <button className="nav-item" onClick={() => choose("speed")}><SlidersHorizontal size={18} /> Page speed</button>
+          <button className="nav-item" onClick={() => choose("titles")}><Files size={18} /> Batch title drafts</button>
           <a className="nav-item" href="/project-guide.html" target="_blank" rel="noreferrer"><GitBranch size={18} /> Project map & guide</a>
           <button className="nav-item" onClick={() => setManageWebsites(true)}><Files size={18} aria-hidden="true" /> Saved websites</button>
           <button className="nav-item" onClick={() => setHelp(true)}>
@@ -472,7 +552,7 @@ function App() {
               </small>
             </div>
           </div>
-        </div>
+        </details>
       </aside>
       <div className="shell">
         <header className="topbar">
@@ -493,12 +573,12 @@ function App() {
                 {scan && !history.some((item) => item.id === scan.id) && (
                   <option value={scan.id}>
                     {host(scan.url)} ·{" "}
-                    {running ? "Scanning…" : `${pages.length} pages`}
+                    {running ? "Scanning…" : `${pages.length} ${pages.length === 1 ? "page" : "pages"}`}
                   </option>
                 )}
                 {history.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {host(item.url)} · {item.pages} pages ·{" "}
+                    {host(item.url)} · {item.pages} {item.pages === 1 ? "page" : "pages"} ·{" "}
                     {new Date(item.startedAt).toLocaleDateString()}
                   </option>
                 ))}
@@ -538,23 +618,23 @@ function App() {
               <h1 ref={heading} tabIndex={-1}>
                 {view === "overview"
                   ? scan
-                    ? "Your next website improvement"
-                    : "SEO audit for your website"
+                    ? "Website overview"
+                    : "Turn findings into finished fixes."
                   : view === "issues"
-                    ? "Findings"
+                    ? "Opportunities"
                     : view === "pages"
                       ? "Pages"
                       : view === "links"
                         ? "Internal links"
                         : view === "ai"
                           ? "AI tools for this website"
-                          : view === "speed" ? "Page speed" : view === "search" ? "Search performance" : view === "verify" ? "Change verification" : view === "titles" ? "Title suggestions by category" : "Saved changes"}
+                          : view === "speed" ? "Page speed" : view === "search" ? "Search performance" : view === "verify" ? "Results" : view === "titles" ? "Title suggestions by category" : "Your change plan"}
               </h1>
               <p>
                 {view === "overview"
                   ? scan
-                    ? "Your scan, the priorities, and what to do next."
-                    : "Find what needs attention. Make your next change with confidence."
+                    ? "Start with one useful change. Keep the evidence with the work."
+                    : "Read your public pages, prepare an exact edit, then check the published response. No AI key is needed to start."
                   : view === "issues"
                     ? "Clear findings with a reason and a practical next step."
                     : view === "pages"
@@ -563,10 +643,10 @@ function App() {
                         ? "Candidates from shared words in existing page content. Always review the placement."
                         : view === "ai"
                           ? "Use your NVIDIA key to turn page evidence into keyword ideas, content plans and reviewable improvements."
-                          : view === "speed" ? "Run a Google speed test or import a free Lighthouse report from your computer." : view === "search" ? "Optional Search Console data: import a CSV, connect Google, or skip it." : view === "verify" ? "Compare an older baseline with this scan and check what actually changed." : view === "titles" ? "Select pages, generate evidence-based title drafts, and save the suggestions you approve." : "Review your saved drafts, then export them when you’re ready."}
+                          : view === "speed" ? "Run a Google speed test or import a free Lighthouse report from your computer." : view === "search" ? "Optional Search Console data: import a CSV, connect Google, or skip it." : view === "verify" ? "Find saved checks, compare expected and observed values, and continue unfinished work." : view === "titles" ? "Select pages, generate evidence-based title drafts, and save the suggestions you approve." : "Review the exact edit, apply it in your website editor, then check the response."}
               </p>
             </div>
-            {scan && scan.status !== "running" && (
+            {scan && scan.status !== "running" && view !== "repairs" && (
               <a
                 className="button secondary"
                 href="#"
@@ -579,10 +659,10 @@ function App() {
               </a>
             )}
           </div>
-          {scan && !composerOpen && <WebsiteTechnology key={scan.id} scan={scan} />}
-          {(["issues", "pages", "links", "search", "verify", "titles", "speed"].includes(view)) && (
+          {scan && !composerOpen && !["repairs", "verify"].includes(view) && <details className="studio-technology"><summary><Code2 size={16} aria-hidden="true" /> Website technology & inspection evidence <ChevronRight size={15} aria-hidden="true" /></summary><WebsiteTechnology key={scan.id} scan={scan} /></details>}
+          {(["issues", "pages", "links"].includes(view)) && (
             <div className="page-segments" role="group" aria-label="Page views">
-              <button aria-pressed={view === "issues"} onClick={() => choose("issues")}>Issues to fix</button>
+              <button aria-pressed={view === "issues"} onClick={() => choose("issues")}>Findings</button>
               <button
                 aria-pressed={view === "pages"}
                 onClick={() => choose("pages")}
@@ -595,10 +675,6 @@ function App() {
               >
                 Connections & links
               </button>
-              <button aria-pressed={view === "search"} onClick={() => choose("search")}>Search Console</button>
-              <button aria-pressed={view === "verify"} onClick={() => choose("verify")}>Verify changes</button>
-              <button aria-pressed={view === "titles"} onClick={() => choose("titles")}>Generate titles</button>
-              <button aria-pressed={view === "speed"} onClick={() => choose("speed")}>Page speed</button>
             </div>
           )}
           {error && scan && !composerOpen && (
@@ -662,9 +738,11 @@ function App() {
                     disabled={running}
                   >
                     {[1, 10, 40, 100, 200].map((n) => (
-                      <option key={n}>{n}</option>
+                      <option key={n} value={n}>{n} {n === 1 ? "page" : "pages"}</option>
                     ))}
+                    {!hosted && <option value={1000}>Whole site · up to 1,000</option>}
                   </select>
+
                 </label>
                 <button className="button primary" disabled={busy || running}>
                   {busy ? (
@@ -681,6 +759,7 @@ function App() {
                   {error}
                 </p>
               )}
+              <p className="scan-scope-note">{hosted ? "Hosted scans read up to 200 pages within a time limit." : "Start with a sample of pages. Larger scans read up to 1,000 discovered HTML pages."} We do not run the website’s JavaScript.</p>
               <div className="scan-footer">
                 <span>
                   <Check size={13} /> Respects robots.txt
@@ -700,7 +779,7 @@ function App() {
           )}
           {running && (
             <section className="progress-panel" aria-live="polite">
-              <LoaderCircle size={20} className="spin" />
+              <Pip mood="reading" size={52} />
               <div>
                 <strong>Reading page {pages.length + 1}</strong>
                 <span>{scan.current || "Checking robots.txt…"}</span>
@@ -730,6 +809,8 @@ function App() {
                 scan={scan}
                 addRepair={addRepair}
                 repairs={repairs}
+                viewLinks={() => choose("links")}
+                inspectLinks={(page) => { setDetailTrail([]); setDetailIssueId(undefined); setLinkEvidenceUrl(page.url); setDetail(page); }}
                 initialTask={
                   aiLaunch?.scanId === scan?.id ? aiLaunch?.task : undefined
                 }
@@ -744,44 +825,7 @@ function App() {
             </DeferredTool>
           ) : !scan ? (
             <>
-              <section className="empty-intro">
-                <div className="section-heading">
-                  <h2>From evidence to a better page.</h2>
-                </div>
-                <div className="steps">
-                  {[
-                    {
-                      n: "01",
-                      icon: FileSearch,
-                      title: "Scan your website",
-                      text: "Read the pages, metadata, headings and internal links your site serves.",
-                    },
-                    {
-                      n: "02",
-                      icon: SlidersHorizontal,
-                      title: "Find your next improvement",
-                      text: "Separate errors, review suggestions and intentional choices.",
-                    },
-                    {
-                      n: "03",
-                      icon: ListChecks,
-                      title: "Review every change",
-                      text: "Draft changes, export your plan and review it before applying.",
-                    },
-                  ].map((s) => (
-                    <article key={s.n}>
-                      <div className="step-top">
-                        <span className="step-icon">
-                          <s.icon size={22} />
-                        </span>
-                        <span>{s.n}</span>
-                      </div>
-                      <h3>{s.title}</h3>
-                      <p>{s.text}</p>
-                    </article>
-                  ))}
-                </div>
-              </section>
+              <PipNote title="I’m Pip. Let’s make one useful change."><ol><li>Scan a website and inspect a finding.</li><li>Save an exact draft and apply it in your editor.</li><li>Return to check the page response. Saving a draft does not publish it.</li></ol></PipNote>
               <HistoryPanel
                 history={history}
                 select={(id) => void selectScan(id)}
@@ -807,86 +851,48 @@ function App() {
                           : "Scan in progress"}
                   </strong>
                   <span>{host(scan.url)}</span>
-                  <span className="scan-counts">{pages.length} pages read · {scan.issues.length} findings</span>
+                  <span className="scan-counts">{pages.length} {pages.length === 1 ? "page" : "pages"} read · {scan.issues.length} findings</span>
                   {host(scan.url) === "sample.example" && (
                     <span className="ai-chip">
                       Sample audit · demonstration
                     </span>
                   )}
                   <time>{new Date(scan.startedAt).toLocaleString()}</time>
+                  <button className="text-button scan-context-action" disabled={busy} onClick={() => void start(false, { url: scan.url, limit: crawlCap })}>
+                    <Search size={14} aria-hidden="true" /> Re-scan whole website
+                  </button>
                 </div>
               )}
               {scan.error && (
                 <div className="error-box" role="alert">
-                  {scan.error}
+                  <strong>Scan could not finish</strong>
+                  <p>{scan.error}</p>
+                  <div className="error-actions">
+                    <button className="button secondary" disabled={busy || running} onClick={() => void start(false, { url: scan.url, limit: Math.min(scan.limit, crawlCap) })}>
+                      <Search size={15} aria-hidden="true" /> Retry same scan
+                    </button>
+                    <button className="button secondary" disabled={busy || running} onClick={() => void start(false, { url: scan.url, limit: crawlCap })}>
+                      <Search size={15} aria-hidden="true" /> Re-scan whole website
+                    </button>
+                  </div>
                 </div>
               )}
               {view === "overview" && (
                 <>
-                  <div className="measurement-actions"><button className="button secondary" onClick={() => choose("speed")}>Check page speed</button><button className="button secondary" onClick={() => choose("search")}>Add Search Console data (optional)</button><button className="button secondary" onClick={() => choose("verify")}>Verify published changes</button></div>
-                  <section className="workflow-path" aria-label="Your website workflow">
-                    <button onClick={() => choose("issues")}><span>1</span><div><strong>Review the audit</strong><small>{affected} pages need review</small></div><ArrowRight size={18} /></button>
-                    <button onClick={() => openAi("priorities")} disabled={running || !pages.length}><span>2</span><div><strong>Choose an AI tool</strong><small>Ideas, comparisons and drafts</small></div><ArrowRight size={18} /></button>
-                    <button onClick={() => choose("repairs")}><span>3</span><div><strong>Review saved changes</strong><small>{repairs.length ? `${repairs.length} ${repairs.length === 1 ? "draft" : "drafts"} ready to review` : "Save drafts, then export"}</small></div><ArrowRight size={18} /></button>
-                  </section>
-                  <section
-                    className="next-step"
-                    aria-labelledby="next-step-heading"
-                  >
-                    <div
-                      className={
-                        "next-step-symbol " + (high ? "attention" : "")
-                      }
-                    >
-                      <FileSearch size={24} />
+
+                  {!running && pages.length > 0 && (() => { const task = nextTask(scan, repairs); return <section className="next-step concrete-task" aria-labelledby="next-step-heading"><Pip mood="ready" size={64} /><div><span className="eyebrow">YOUR NEXT STEP · BASED ON THIS SCAN</span><h2 id="next-step-heading">{task.title}</h2><small className="task-page">Page: {short(task.pageUrl)}</small><p>{task.detail}</p></div><button className="button primary" onClick={() => { if (task.kind === "finding") { const issue = scan.issues.find(item => item.id === task.issueId); if (issue) reviewIssue(issue); } else choose(task.kind === "plan" ? "repairs" : "pages"); }}>{task.action}<ArrowRight size={16} aria-hidden="true" /></button></section>; })()}
+
+                  <section className="seo-workboard" aria-label="Website improvement workboard">
+                    <div className="workboard-main">
+                      <h2 className="sr-only">Facts from this scan</h2>
+                      <div className="workboard-stats" aria-label="Current scan facts">
+                        <button onClick={() => choose("pages")}><Files size={18} aria-hidden="true" /><strong>{pages.length}</strong><span>Pages read</span></button>
+                        <button onClick={() => choose("issues")}><FileSearch size={18} aria-hidden="true" /><strong>{affected}</strong><span>Pages with findings</span></button>
+                        <button onClick={() => choose("repairs")}><ListChecks size={18} aria-hidden="true" /><strong>{repairs.length}</strong><span>Drafts in this scan</span></button>
+                      </div>
                     </div>
-                    <div>
-                      <span className="eyebrow">
-                        {running ? "SCAN IN PROGRESS" : "START HERE"}
-                      </span>
-                      <h2 id="next-step-heading">
-                        {running
-                          ? "Your website is coming into focus."
-                          : high
-                            ? `${high} high-priority ${high === 1 ? "finding needs" : "findings need"} a closer look.`
-                            : affected
-                              ? `${affected} ${affected === 1 ? "page is" : "pages are"} ready for your review.`
-                              : scan.status === "failed"
-                                ? "Let’s get this scan back on track."
-                                : "Explore the pages behind your results."}
-                      </h2>
-                      <p>
-                        {running
-                          ? "Pages are available as they’re read. You can keep exploring while the scan runs."
-                          : high
-                            ? "Start with response errors, missing titles and broken internal links."
-                            : "Review the evidence, then save the changes that make sense for your site."}
-                      </p>
-                    </div>
-                    <button
-                      className="button primary"
-                      disabled={running && !pages.length}
-                      onClick={() => {
-                        if (!pages.length) {
-                          setUrl(scan.url);
-                          newScan();
-                          return;
-                        }
-                        choose(affected ? "issues" : "pages");
-                        if (high) setSeverity("high");
-                      }}
-                    >
-                      {!pages.length
-                        ? running
-                          ? "Reading your website…"
-                          : "Try scan again"
-                        : affected
-                          ? "Review findings"
-                          : "Explore pages"}
-                      <ArrowRight size={16} />
-                    </button>
                   </section>
-                  <details className="audit-details"><summary>Scan statistics & coverage · {pages.length} pages read · {high} high-priority findings</summary>
+                  <details className="audit-details"><summary>Scan statistics & coverage · {pages.length} {pages.length === 1 ? "page" : "pages"} read · {high} high-priority findings</summary>
                   <div className="metrics">
                     <Metric
                       label="Pages read"
@@ -933,8 +939,8 @@ function App() {
                             className="finding-group"
                             key={g.type}
                             onClick={() => {
+                              setFindingFilter({ query: "", problemType: g.type, severity: "all" });
                               choose("issues");
-                              setQuery(g.label);
                             }}
                           >
                             <span className={"severity-marker " + g.severity} />
@@ -1003,6 +1009,7 @@ function App() {
                     </section>
                   </div>
                   </details>
+                  <details className="optional-research"><summary>Optional research: AI, keywords and competitors</summary>
                   <section
                     className="panel scan-ai-actions"
                     aria-labelledby="scan-ai-heading"
@@ -1066,6 +1073,7 @@ function App() {
                       measured.
                     </p>
                   </section>
+                  </details>
                   {scan.notice.map((n, i) => (
                     <p className="notice" key={i}>
                       <CircleHelp size={14} />
@@ -1303,91 +1311,20 @@ function App() {
                         {scan.suggestions.length}
                       </span>
                     </div>
-                    {scan.suggestions.map((s, i) => (
-                      <article className="link-candidate" key={i}>
-                        <div className="link-route">
-                          <span>
-                            DONOR <strong>{short(s.source)}</strong>
-                          </span>
-                          <ArrowRight size={16} />
-                          <span>
-                            RECEIVER <strong>{short(s.target)}</strong>
-                          </span>
-                        </div>
-                        <p>{s.context}</p>
-                        <div>
-                          <span className="anchor-label">Candidate anchor</span>
-                          <strong className="anchor-text">{s.anchor}</strong>
-                          <span className="overlap">
-                            Relevance keywords: {s.overlap.join(", ")}
-                          </span>
-                        </div>
-                      </article>
-                    ))}
-                    {!scan.suggestions.length && (
-                      <Empty text="No eligible text-match candidates in this scan. That does not mean the site needs no links." />
-                    )}
+                    <DeferredTool label="Internal link opportunities"><LinkOpportunities key={scan.id} scan={scan} inspect={page => { setDetailIssueId(undefined); setDetailTrail([]); setLinkEvidenceUrl(page.url); setDetail(page); }} /></DeferredTool>
                   </section>
                 </>
               )}
               {view === "search" && <DeferredTool label="Search Console"><SearchConsolePanel key={scan.id} scan={scan} inspect={setDetail} /></DeferredTool>}
               {view === "speed" && <DeferredTool label="Page speed"><PageSpeedPanel key={scan.id} scan={scan} /></DeferredTool>}
-              {view === "verify" && <DeferredTool label="Change verification"><VerificationPanel key={scan.id} scan={scan} inspect={setDetail} /></DeferredTool>}
+              {view === "verify" && <DeferredTool label="Change verification"><ResultsPanel key={scan.id} scan={scan} repairs={repairs} inspect={setDetail} openPlan={async id => { if (await selectScan(id)) choose("repairs"); }} /></DeferredTool>}
               {view === "titles" && <DeferredTool label="Title suggestions"><BatchTitles key={scan.id} scan={scan} repairs={repairs} save={addRepair} setup={() => openAi("optimize")} plan={() => choose("repairs")} /></DeferredTool>}
               {view === "repairs" && (
                 <section className="panel">
-                  <div className="section-heading">
-                    <div>
-                      <h2>Saved drafts</h2>
-                      <p>
-                        Review a page to add a title, description or image-alt
-                        draft.
-                      </p>
-                    </div>
-                    <button
-                      className="button primary"
-                      disabled={!repairs.length}
-                      onClick={exportPlan}
-                    >
-                      <ArrowDownToLine size={16} /> Export plan
-                    </button>
-                  </div>
-                  {repairs.map((r) => (
-                    <article className="repair" key={r.id}>
-                      <div className="repair-head">
-                        <strong>{r.field.replaceAll("_", " ")}</strong>
-                        <span>{short(r.url)}</span>
-                        <button
-                          className="icon-button"
-                          aria-label="Remove draft"
-                          onClick={() => {
-                            setUndoRepair({ scanId: scan.id, repair: r });
-                            setRepairs((prev) =>
-                              prev.filter((x) => x.id !== r.id),
-                            );
-                            setToast("Draft removed from your plan.");
-                          }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                      <div className="diff">
-                        <div>
-                          <small>CURRENT HTML</small>
-                          <p>{r.original || "(empty)"}</p>
-                        </div>
-                        <div>
-                          <small>YOUR DRAFT</small>
-                          <p>{r.value}</p>
-                        </div>
-                      </div>
-                      <p className="evidence-hint">Apply this exact value in your page/CMS editor. For supported WordPress fields, export the plan and use the companion preview/apply flow. This console does not publish automatically.</p>
-                      <button className="button secondary" disabled={running || busy} onClick={() => void recheckPage(r.url)}>Re-scan this page & verify</button>
-                    </article>
-                  ))}
-                  {!repairs.length && (
-                    <><Empty text="Your repair plan is empty. Open a page, review its evidence, and write a draft. AI is optional." /><div className="measurement-actions"><button className="button secondary" onClick={() => choose("pages")}>Choose a page to improve</button><button className="button secondary" onClick={() => choose("titles")}>Generate title suggestions</button></div></>
-                  )}
+                  <PlanPanel key={scan.id} scan={scan} repairs={repairs} busy={busy || running} inspect={setDetail} revise={addRepair}
+                    change={repair => setRepairs(prev => prev.map(item => item.id === repair.id ? repair : item))}
+                    remove={repair => { setUndoRepair({ scanId: scan.id, repair }); setRepairs(prev => prev.filter(item => item.id !== repair.id)); setToast("Draft removed from your plan."); }}
+                    verify={repair => void recheckPage(repair.url, repair)} exportPlan={exportPlan} choosePage={() => choose("issues")} />
                   <div className="plugin-note">
                     <ShieldCheck size={22} />
                     <div>
@@ -1406,7 +1343,7 @@ function App() {
                         The included companion plugin lets a WordPress
                         administrator import this plan, preview changes and
                         apply or restore supported fields. A JSON export does
-                        not publish anything.
+                        not publish anything. Empty-alt drafts need manual application; the companion rejects empty replacements.
                       </p>
                     </div>
                   </div>
@@ -1451,18 +1388,20 @@ function App() {
             </button>
           </footer>
         </main>
+
       </div>
       {detail && (
         <PageDrawer
-          key={scan!.id + detail.url}
+          key={scan!.id + detail.url + (detailIssueId || "") + (linkEvidenceUrl || "")}
           page={detail}
           scan={scan!}
           initialIssueId={detailIssueId}
+          initialEvidenceTab={linkEvidenceUrl === detail.url ? "links" : "issues"}
           inspect={(page) => { setDetailTrail(previous => [...previous, detail]); setDetailIssueId(undefined); setDetail(page); }}
           back={detailTrail.length ? () => { setDetail(detailTrail[detailTrail.length - 1]); setDetailTrail(previous => previous.slice(0, -1)); setDetailIssueId(undefined); } : undefined}
           repairs={repairs}
           save={addRepair}
-          close={() => { setDetail(null); setDetailTrail([]); }}
+          close={closePage}
           analyze={() => openAi("optimize", detail.url)}
           rescan={() => void recheckPage(detail.url)}
           viewPlan={() => {
@@ -1525,7 +1464,7 @@ function App() {
       )}
       {toast && (
         <div className="toast" role="status">
-          <Check size={16} />
+          {toast.startsWith("Draft saved") && !error ? <Pip mood="saved" size={32} /> : <Check size={16} />}
           {toast}
           {undoRepair && undoRepair.scanId === scan?.id && (
             <button
@@ -1589,13 +1528,13 @@ function HistoryPanel({
       <section className="panel history">
         <div className="section-heading">
           <h2>Recent scans</h2>
-          <span>Saved in this browser</span>
+          <span>{hosted ? "Saved in this browser" : "Scans saved on this computer"}</span>
         </div>
         {history.slice(0, 6).map((h) => (
           <button key={h.id} onClick={() => select(h.id)}>
             <Globe2 size={18} />
             <strong>{host(h.url)}</strong>
-            <span>{h.pages} pages</span>
+            <span>{h.pages} {h.pages === 1 ? "page" : "pages"}</span>
             <span>{h.issues} findings</span>
             <time>{new Date(h.startedAt).toLocaleDateString()}</time>
             <ChevronRight size={16} />
@@ -1609,6 +1548,7 @@ function PageDrawer({
   page,
   scan,
   initialIssueId,
+  initialEvidenceTab,
   inspect,
   back,
   repairs,
@@ -1621,6 +1561,7 @@ function PageDrawer({
   page: Page;
   scan: Scan;
   initialIssueId?: string;
+  initialEvidenceTab?: "issues" | "links";
   inspect: (page: Page) => void;
   back?: () => void;
   repairs: Repair[];
@@ -1630,9 +1571,12 @@ function PageDrawer({
   rescan: () => void;
   viewPlan: () => void;
 }) {
-  const [field, setField] = useState<Repair["field"]>("title"),
-    [image, setImage] = useState(0),
+  const [field, setField] = useState<Repair["field"]>(() => { const issue = scan.issues.find(item => item.id === initialIssueId); return issue?.type.includes("description") ? "meta_description" : issue?.type.includes("alt") ? "alt_text" : "title"; }),
+    [image, setImage] = useState(() => Math.max(0, page.images.findIndex(image => image.alt === null))),
     [value, setValue] = useState("");
+  const [editorError, setEditorError] = useState("");
+  const [decorative, setDecorative] = useState(false);
+  useEffect(() => setDecorative(false), [field, image]);
   const original =
     field === "title"
       ? page.title
@@ -1656,88 +1600,9 @@ function PageDrawer({
       setValue(existing?.value || original);
     }
   }, [id]);
-  return (
-    <div className="scrim" onClick={close}>
-      <aside
-        className="drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="page-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="drawer-header">
-          <span className="eyebrow">PAGE REVIEW</span>
-          <button
-            autoFocus
-            className="icon-button"
-            onClick={close}
-            aria-label="Close page review"
-          >
-            <X size={21} />
-          </button>
-        </div>
-        {back && <button className="text-button page-review-back" onClick={back}>← Back to previous page</button>}
-        <h2 id="page-title">{page.title || "Untitled page"}</h2>
-        <button
-          className="button secondary page-ai-button"
-          disabled={page.status < 200 || page.status >= 300 || !!page.error}
-          onClick={analyze}
-        >
-          <Sparkles size={16} /> Improve this page with AI
-        </button>
-        <a
-          href={page.url}
-          target="_blank"
-          rel="noreferrer"
-          className="external-url"
-        >
-          {page.url}
-          <ArrowUpRight size={15} />
-        </a>
-        <div className="drawer-stats">
-          <span>HTTP {page.status || "unknown"}</span>
-          <span>{page.wordCount} words</span>
-          <span>{scan.issues.filter(issue => issue.url === page.url).length} findings</span>
-        </div>
-        <button className="button secondary" onClick={rescan}><Search size={16} />Re-scan this page & verify</button>
-        <DeferredTool label="Technology signals"><TechnologyPanel page={page} /></DeferredTool>
-        <DeferredTool label="Page evidence"><PageEvidence page={page} scan={scan} initialIssueId={initialIssueId} inspect={inspect} save={save} setup={analyze} draft={(next) => {
-          setField(next);
-          if (next === "alt_text") setImage(Math.max(0, page.images.findIndex(image => image.alt === null)));
-          requestAnimationFrame(() => { const editor = document.getElementById("page-draft-value"); editor?.scrollIntoView({ block: "center" }); editor?.focus({ preventScroll: true }); });
-        }} /></DeferredTool>
-        <details className="metadata-details"><summary>Page metadata & response evidence</summary>
-        <h3>What the page serves</h3>
-        <dl className="page-data">
-          <div>
-            <dt>Title</dt>
-            <dd>{page.title || "Missing"}</dd>
-          </div>
-          <div>
-            <dt>Description</dt>
-            <dd>{page.description || "Missing"}</dd>
-          </div>
-          <div>
-            <dt>H1 headings</dt>
-            <dd>{page.h1.join(" / ") || "None found"}</dd>
-          </div>
-          <div>
-            <dt>Canonical</dt>
-            <dd>{page.canonical || "Not declared"}</dd>
-          </div>
-          <div>
-            <dt>Robots</dt>
-            <dd>{page.robots || "No restriction found in response"}</dd>
-          </div>
-          <div>
-            <dt>Links / schema blocks</dt>
-            <dd>
-              {page.links.length} links · {page.schemaCount} JSON-LD blocks
-            </dd>
-          </div>
-        </dl>
-        </details>
-        {page.status >= 200 && page.status < 300 && !page.error ? <section className="draft-editor">
+  const focusedIssue = scan.issues.find(issue => issue.id === initialIssueId);
+  const focusedEditable = !!focusedIssue && !!editableField(focusedIssue);
+  const draftEditor = page.status >= 200 && page.status < 300 && !page.error ? <section className="draft-editor">
           <div className="section-heading">
             <h3>Draft a change</h3>
             <span className="local-badge">Not published</span>
@@ -1779,6 +1644,7 @@ function PageDrawer({
             <textarea
               id="page-draft-value"
               rows={4}
+              maxLength={20000}
               value={value}
               onChange={(e) => {
                 setValue(e.target.value);
@@ -1788,12 +1654,15 @@ function PageDrawer({
                     JSON.stringify({ original, value: e.target.value }),
                   );
                 } catch {
-                  /* The editor remains usable when browser storage is full. */
+                  setEditorError("This edit is only in memory because browser storage is unavailable. Copy it before leaving.");
                 }
               }}
               placeholder="Write an accurate replacement…"
             />
           </label>
+          {field === "alt_text" && <label className="ai-consent"><input type="checkbox" checked={decorative} onChange={event => { setDecorative(event.target.checked); if (event.target.checked) setValue(""); }} /><span>I visually checked that this image is decorative. Save an empty alt attribute.</span></label>}
+          {editorError && <p className="error-box" role="alert">{editorError}</p>}
+          <p className="evidence-hint">Observed baseline: {original || "Empty or missing"}. Check the wording against this page’s content before approving it in your plan.</p>
           <div className="editor-footer">
             <small>
               {value.length} characters · editing stays in this browser
@@ -1801,8 +1670,8 @@ function PageDrawer({
             <button
               className="button primary"
               disabled={
-                !value.trim() ||
-                value === original ||
+                (!value.trim() && !(field === "alt_text" && decorative)) ||
+                (value === original && !(field === "alt_text" && decorative && page.images[image]?.alt === null)) ||
                 existing?.value === value.trim()
               }
               onClick={() =>
@@ -1831,10 +1700,95 @@ function PageDrawer({
             </div>
           )}
           <p className="notice">
-            Saving creates a local draft. Export and review it in WordPress
-            before applying.
+            Saving creates a browser-local draft. Review it in your plan, then apply it in your website editor.
           </p>
-        </section> : <p className="notice">Restore this page’s response in your website or hosting settings before drafting metadata. Use the problem instructions and incoming links above to plan the fix.</p>}
+        </section> : <p className="notice">Restore this page’s response in your website or hosting settings before drafting metadata. Use the problem instructions and incoming links above to plan the fix.</p>;
+  const pageEvidence = (<DeferredTool label="Page evidence"><PageEvidence page={page} scan={scan} initialIssueId={initialIssueId} initialTab={initialEvidenceTab} inspect={inspect} save={save} setup={analyze} draft={(next) => {
+          setField(next);
+          if (next === "alt_text") setImage(Math.max(0, page.images.findIndex(image => image.alt === null)));
+          requestAnimationFrame(() => { const editor = document.getElementById("page-draft-value"); editor?.scrollIntoView({ block: "center" }); editor?.focus({ preventScroll: true }); });
+        }} /></DeferredTool>);
+  return (
+    <div className="scrim" onClick={close}>
+      <aside
+        className="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="page-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="drawer-header">
+          <span className="eyebrow">PAGE REVIEW</span>
+          <button
+            autoFocus
+            className="icon-button"
+            onClick={close}
+            aria-label="Close page review"
+          >
+            <X size={21} />
+          </button>
+        </div>
+        {back && <button className="text-button page-review-back" onClick={back}>← Back to previous page</button>}
+        <h2 id="page-title">{page.title || "Untitled page"}</h2>
+        {!focusedEditable && <button
+          className="button secondary page-ai-button"
+          disabled={page.status < 200 || page.status >= 300 || !!page.error}
+          onClick={analyze}
+        >
+          <Sparkles size={16} /> Improve this page with AI
+        </button>}
+        <a
+          href={page.url}
+          target="_blank"
+          rel="noreferrer"
+          className="external-url"
+        >
+          {page.url}
+          <ArrowUpRight size={15} />
+        </a>
+        <div className="drawer-stats">
+          <span>HTTP {page.status || "unknown"}</span>
+          <span>{page.wordCount} words</span>
+          <span>{scan.issues.filter(issue => issue.url === page.url).length} findings</span>
+        </div>
+        {focusedIssue && <section className="focused-observation" aria-labelledby="focused-finding-title"><span className="eyebrow">SELECTED FINDING · RESPONSE HTML</span><h3 id="focused-finding-title">{focusedIssue.label}</h3><p>{focusedIssue.detail}</p><p>{focusedIssue.action}</p><p className="evidence-hint">Observed {new Date(scan.startedAt).toLocaleString()}. {focusedIssue.type.includes("length") || focusedIssue.type.includes("multiple") ? "This is an editorial review signal, not a ranking rule." : "Review page purpose before changing it."}</p></section>}
+        {focusedEditable && draftEditor}
+        {focusedEditable ? <details className="focused-more"><summary>Inspect page content, links and other findings</summary>{pageEvidence}</details> : pageEvidence}
+        <details className="metadata-details"><summary>Page metadata, technology & response evidence</summary>
+        <button className="button secondary" onClick={rescan}><Search size={16} />Re-scan this page & verify</button>
+        <DeferredTool label="Technology signals"><TechnologyPanel page={page} /></DeferredTool>
+        <h3>What the page serves</h3>
+        <dl className="page-data">
+          <div>
+            <dt>Title</dt>
+            <dd>{page.title || "Missing"}</dd>
+          </div>
+          <div>
+            <dt>Description</dt>
+            <dd>{page.description || "Missing"}</dd>
+          </div>
+          <div>
+            <dt>H1 headings</dt>
+            <dd>{page.h1.join(" / ") || "None found"}</dd>
+          </div>
+          <div>
+            <dt>Canonical</dt>
+            <dd>{page.canonical || "Not declared"}</dd>
+          </div>
+          <div>
+            <dt>Robots</dt>
+            <dd>{page.robots || "No restriction found in response"}</dd>
+          </div>
+          <div>
+            <dt>Links / schema blocks</dt>
+            <dd>
+              {page.links.length} links · {page.schemaCount} JSON-LD blocks
+            </dd>
+          </div>
+        </dl>
+        </details>
+        {!focusedEditable && draftEditor}
+
       </aside>
     </div>
   );

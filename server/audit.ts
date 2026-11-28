@@ -1,3 +1,4 @@
+import { editorialLinkPage } from "../src/link-eligibility.js";
 import { Parser } from "htmlparser2";
 import { createHash } from "node:crypto";
 import type { Page, Issue, Suggestion } from "../src/types.js";
@@ -16,6 +17,7 @@ export function parsePage(html: string, url: string): Page {
   const page: Page = {
     url,
     finalUrl: url,
+    favicon: undefined,
     status: 200,
     title: "",
     description: "",
@@ -72,6 +74,8 @@ export function parsePage(html: string, url: string): Page {
           try {
             page.canonical = normalizeUrl(a.href, base);
           } catch {}
+        if (name === "link" && /(?:^|\s)(?:icon|shortcut|apple-touch-icon)(?:\s|$)/i.test(a.rel || "") && a.href && !page.favicon)
+          try { page.favicon = normalizeUrl(a.href, base); } catch {}
         if (name === "img")
           try {
             page.images.push({
@@ -337,18 +341,19 @@ export function analyze(pages: Page[]): {
           );
   }
   const suggestions: Suggestion[] = [];
+  const linkPages = usable.filter(editorialLinkPage);
   const paragraphs = new Map(
-    usable.map((page) => [
+    linkPages.map((page) => [
       page,
       page.paragraphs
         .slice(0, 20)
         .map((context) => ({ context, words: tokens(context) })),
     ]),
   );
-  suggestionSearch: for (const target of usable) {
+  suggestionSearch: for (const target of linkPages) {
     if (/\b(noindex|none)\b/i.test(target.robots)) continue;
     const topic = tokens(target.title + " " + target.h1.join(" "));
-    for (const source of usable) {
+    for (const source of linkPages) {
       if (
         source === target ||
         source.links.some(

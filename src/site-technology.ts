@@ -1,6 +1,6 @@
 import type { Page } from "./types";
 
-export type Inspection = { url: string; status: number; technologies: NonNullable<Page["technologies"]>; inspectedAt: string; inspectedScripts: number; limitation: string };
+export type Inspection = { url: string; status: number; favicon?: string | null; technologies: NonNullable<Page["technologies"]>; inspectedAt: string; inspectedScripts: number; limitation: string };
 export const TECHNOLOGY_TTL = 24 * 60 * 60 * 1000;
 export function technologyKey(url: string) { return "seo:site-technology:" + new URL(url).origin; }
 export function readInspection(value: string | null, url: string, now = Date.now()): Inspection | null {

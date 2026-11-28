@@ -18,6 +18,7 @@ export const pageSchema = z.object({
   outline: z.array(z.object({ kind: z.enum(["heading", "paragraph", "image"]), text: str(2000), level: z.number().int().min(1).max(6).optional(), src: url.optional(), region: str(30) })).max(200).optional(),
   url,
   finalUrl: url,
+  favicon: url.optional(),
   status: z.number().int().min(0).max(599),
   title: str(3000),
   description: str(5000),
@@ -37,14 +38,14 @@ export const pageSchema = z.object({
 });
 export const scanSchema = z.object({
   deletedAt: z.iso.datetime().optional(),
-  sourcePageCount: z.number().int().min(1).max(200).optional(),
+  sourcePageCount: z.number().int().min(1).max(1000).optional(),
   id: z.string().regex(/^[\w-]{1,100}$/),
   url,
   status: z.enum(["running", "completed", "cancelled", "failed"]),
   startedAt: z.iso.datetime(),
   finishedAt: z.iso.datetime().optional(),
-  limit: z.number().int().min(1).max(200),
-  pages: z.array(pageSchema).max(200),
+  limit: z.number().int().min(1).max(1000),
+  pages: z.array(pageSchema).max(1000),
   issues: z
     .array(
       z.object({

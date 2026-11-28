@@ -39,3 +39,9 @@ Automated tests cover authentication, cookie tampering/isolation, cross-origin r
 `public.html` is a separate static tool entry; private hosted APIs still require the owner session. PageSpeed requests go directly from the browser to `https://www.googleapis.com`, after explicit URL-sharing consent. An optional personal Google API key is held only in component memory and cleared from the input on run. It is not stored or sent to the app server. Lighthouse imports are parsed as bounded JSON and rendered as escaped text; they never execute imported scripts.
 
 Permanent scan deletion removes scan/research records and scoped browser work, with Trash and exact-ID confirmation guards. Shared per-site data remains while another scan uses it. Atomic scan/report browser transactions prevent late AI responses from recreating records after deletion. External backups, other browsers and provider-held data are outside this operation's scope.
+
+## Optional browser model
+
+Local semantic matching starts only after download consent. It uses a dedicated browser worker, a pinned model revision, at most 24 sampled pages and a bounded runtime. Download fetches omit credentials and referrers and allow only the app origin and the selected Hugging Face host families. Page text is processed on device; model hosts receive download requests. Downloaded code/model dependencies remain a supply-chain trust boundary.
+
+The production CSP adds `wasm-unsafe-eval` for WASM compilation, `worker-src` and the Hugging Face model hosts; it does not enable JavaScript `unsafe-eval` or arbitrary API proxies. `npm start` serves the same CSP as the hosted static configuration. Errors and cancellation leave non-model matching available. Browser cache and separately exported files are outside scan deletion. Dependency audit results are not security certification.
